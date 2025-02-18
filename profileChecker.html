@@ -211,7 +211,7 @@
           {
             sorGetSwapPaths(
               chain: GNOSIS,
-              swapAmount: "1",
+              swapAmount: "0.1",
               swapType: EXACT_IN,
               tokenIn: "${erc20Address}",
               tokenOut: "0xaf204776c7245bf4147c2612bf6e5972ee483701"
@@ -238,7 +238,7 @@
           data.data.sorGetSwapPaths &&
           data.data.sorGetSwapPaths.returnAmount
         ) {
-          return data.data.sorGetSwapPaths.returnAmount;
+          return data.data.sorGetSwapPaths.returnAmount * 10;
         }
         return "N/A";
       } catch (err) {
