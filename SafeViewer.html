@@ -73,9 +73,7 @@
     
     <button id="getTxHashButton">Get Safe Tx Hash</button>
     <div class="result">
-      <p><strong>Safe Tx Hash (RPC):</strong> <span id="txHashResult">-</span></p>
-      <p><strong>Safe Tx Hash (Local):</strong> <span id="localTxHashResult">-</span></p>
-      <p><strong>Comparison:</strong> <span id="txHashComparisonResult">-</span></p>
+      <p><strong>Safe Tx Hash:</strong> <span id="txHashResult">-</span></p>
       <p><strong>ApproveHash Calldata:</strong> <span id="approveHashCalldataResult">-</span></p>
       <p><strong>Approval Status:</strong></p>
       <pre id="approvalStatusResult">-</pre>
@@ -223,17 +221,6 @@
   </div>
 
   <script>
-    // --- Helper function to build a dummy signature for a given owner address ---
-    function buildDummySignature(owner) {
-      // Remove the "0x" prefix if present and make lowercase.
-      let r = owner.toLowerCase().replace(/^0x/, '');
-      // Left-pad r to 64 hex digits
-      r = r.padStart(64, '0');
-      const s = "0".repeat(64); // 32 bytes of zeros
-      const v = "01";           // 1 byte for v
-      return r + s + v;         // Return concatenated string (without 0x prefix)
-    }
-
     // --- Safe ABI (includes getOwners, nonce, getThreshold, getTransactionHash, approveHash, approvedHashes, and execTransaction) ---
     const safeABI = [
       {
@@ -314,19 +301,50 @@
       }
     ];
 
-    // --- RPC & Local Calculation of Safe Tx Hash & Comparison ---
+    // Dummy signature (65 bytes)
+    const dummySignature = "0x0000000000000000000000007b2e78d4dfaaba045a167a70da285e30e8fca1960000000000000000000000000000000000000000000000000000000000000001";
+
+    // --- Safe State and Safe Tx Hash functions ---
+    document.getElementById('checkButton').addEventListener('click', async () => {
+      document.getElementById('owners').innerText = 'Loading...';
+      document.getElementById('nonce').innerText = 'Loading...';
+      document.getElementById('threshold').innerText = 'Loading...';
+
+      const rpcEndpoint = document.getElementById('rpc').value;
+      const safeAddress = document.getElementById('safeAddress').value.trim();
+
+      try {
+        const provider = new ethers.providers.JsonRpcProvider(rpcEndpoint);
+        const safeContract = new ethers.Contract(safeAddress, safeABI, provider);
+
+        const owners = await safeContract.getOwners();
+        const nonce = await safeContract.nonce();
+        const threshold = await safeContract.getThreshold();
+
+        document.getElementById('owners').innerText = owners.join(', ');
+        document.getElementById('nonce').innerText = nonce.toString();
+        document.getElementById('threshold').innerText = threshold.toString();
+
+        // Prepopulate the transaction nonce with the safe's nonce
+        document.getElementById('tx_nonce').value = nonce.toString();
+      } catch (error) {
+        console.error(error);
+        document.getElementById('owners').innerText = 'Error fetching data';
+        document.getElementById('nonce').innerText = 'Error fetching data';
+        document.getElementById('threshold').innerText = 'Error fetching data';
+      }
+    });
+
     document.getElementById('getTxHashButton').addEventListener('click', async () => {
       // Clear previous results
       document.getElementById('txHashResult').innerText = 'Loading...';
-      document.getElementById('localTxHashResult').innerText = 'Loading...';
-      document.getElementById('txHashComparisonResult').innerText = 'Loading...';
       document.getElementById('approveHashCalldataResult').innerText = 'Loading...';
       document.getElementById('approvalStatusResult').innerText = 'Loading...';
       document.getElementById('execTxCalldataContainer').style.display = "none";
       
       const rpcEndpoint = document.getElementById('rpc').value;
       const safeAddress = document.getElementById('safeAddress').value.trim();
-      
+
       const to = document.getElementById('tx_to').value.trim();
       const value = document.getElementById('tx_value').value.trim();
       const data = document.getElementById('tx_data').value.trim();
@@ -337,14 +355,13 @@
       const gasToken = document.getElementById('tx_gasToken').value.trim();
       const refundReceiver = document.getElementById('tx_refundReceiver').value.trim();
       const nonceInput = document.getElementById('tx_nonce').value.trim();
-      
+
       try {
-        // Create provider and contract instance via RPC.
         const provider = new ethers.providers.JsonRpcProvider(rpcEndpoint);
         const safeContract = new ethers.Contract(safeAddress, safeABI, provider);
-        
-        // 1. Compute Safe Tx Hash via RPC.
-        const rpcSafeTxHash = await safeContract.getTransactionHash(
+
+        // Compute the safe tx hash
+        const safeTxHash = await safeContract.getTransactionHash(
           to,
           value,
           data,
@@ -356,86 +373,30 @@
           refundReceiver,
           nonceInput
         );
-        document.getElementById('txHashResult').innerText = rpcSafeTxHash;
-        
-        // 2. Compute Safe Tx Hash locally using EIP‑712.
-        let localSafeTxHash;
-        try {
-          const network = await provider.getNetwork();
-          const localDomain = {
-            name: "Gnosis Safe",
-            version: "1.1.1",
-            chainId: network.chainId,
-            verifyingContract: safeAddress
-          };
-          const types = {
-            SafeTx: [
-              { name: "to", type: "address" },
-              { name: "value", type: "uint256" },
-              { name: "data", type: "bytes" },
-              { name: "operation", type: "uint8" },
-              { name: "safeTxGas", type: "uint256" },
-              { name: "baseGas", type: "uint256" },
-              { name: "gasPrice", type: "uint256" },
-              { name: "gasToken", type: "address" },
-              { name: "refundReceiver", type: "address" },
-              { name: "nonce", type: "uint256" }
-            ]
-          };
-          const message = {
-            to: to,
-            value: value,
-            data: data,
-            operation: operation,
-            safeTxGas: safeTxGas,
-            baseGas: baseGas,
-            gasPrice: gasPrice,
-            gasToken: gasToken,
-            refundReceiver: refundReceiver,
-            nonce: nonceInput
-          };
-          localSafeTxHash = ethers.utils._TypedDataEncoder.hash(localDomain, types, message);
-        } catch (e) {
-          localSafeTxHash = "Error: " + e.message;
-        }
-        document.getElementById('localTxHashResult').innerText = localSafeTxHash;
-        
-        // 3. Compare the two hashes.
-        if (rpcSafeTxHash === localSafeTxHash) {
-          document.getElementById('txHashComparisonResult').innerText = "MATCH";
-        } else {
-          document.getElementById('txHashComparisonResult').innerText = "DO NOT MATCH";
-        }
-        
-        // 4. Encode the calldata for approveHash using the RPC hash.
+        document.getElementById('txHashResult').innerText = safeTxHash;
+
+        // Encode the calldata for approveHash using the computed safe tx hash
         const iface = new ethers.utils.Interface(safeABI);
-        const approveHashCalldata = iface.encodeFunctionData("approveHash", [rpcSafeTxHash]);
+        const approveHashCalldata = iface.encodeFunctionData("approveHash", [safeTxHash]);
         document.getElementById('approveHashCalldataResult').innerText = approveHashCalldata;
-        
-        // 5. Check approval status for each owner.
+
+        // Check for each owner whether this safe tx hash was approved.
         const owners = await safeContract.getOwners();
         let statusList = "";
-        let approvedOwners = [];
+        let approvedCount = 0;
         for (const owner of owners) {
-          const approved = await safeContract.approvedHashes(owner, rpcSafeTxHash);
+          const approved = await safeContract.approvedHashes(owner, safeTxHash);
           const isApproved = approved.gt(0);
-          if (isApproved) {
-            approvedOwners.push(owner);
-          }
+          if (isApproved) approvedCount++;
           statusList += `${owner}: ${isApproved ? "Approved" : "Not Approved"}\n`;
         }
         document.getElementById('approvalStatusResult').innerText = statusList;
-        
-        // 6. If approvals meet/exceed threshold, build signatures parameter.
+
+        // If approvedCount is at least the threshold, encode execTransaction calldata.
         const threshold = parseInt(document.getElementById('threshold').innerText);
-        if (approvedOwners.length >= threshold) {
-          let signaturesConcat = "";
-          for (let i = 0; i < threshold; i++) {
-            const sig = buildDummySignature(approvedOwners[i]); // Build a dummy signature for each approving owner
-            signaturesConcat += sig;
-          }
-          signaturesConcat = "0x" + signaturesConcat;
-          // 7. Encode execTransaction calldata with the concatenated signatures.
+        if (approvedCount >= threshold) {
+          // Prepare execTransaction calldata.
+          // Note: Using the dummy signature as described.
           const execIface = new ethers.utils.Interface(safeABI);
           const execTxCalldata = execIface.encodeFunctionData("execTransaction", [
             to,
@@ -447,7 +408,7 @@
             gasPrice,
             gasToken,
             refundReceiver,
-            signaturesConcat
+            dummySignature
           ]);
           document.getElementById('execTxCalldataResult').innerText = execTxCalldata;
           document.getElementById('execTxCalldataContainer').style.display = "block";
@@ -457,14 +418,12 @@
       } catch (error) {
         console.error(error);
         document.getElementById('txHashResult').innerText = 'Error fetching safe tx hash';
-        document.getElementById('localTxHashResult').innerText = 'Error computing local tx hash';
-        document.getElementById('txHashComparisonResult').innerText = 'Error comparing hashes';
         document.getElementById('approveHashCalldataResult').innerText = 'Error encoding approveHash calldata';
         document.getElementById('approvalStatusResult').innerText = 'Error checking approval status';
       }
     });
-    
-    // --- Function Call Encoder (toggle section) ---
+
+    // --- Function Call Encoder ---
     document.getElementById('toggleFunctionEncoderButton').addEventListener('click', () => {
       const encoder = document.getElementById('functionEncoder');
       if (encoder.style.display === "none") {
@@ -475,7 +434,7 @@
         document.getElementById('toggleFunctionEncoderButton').innerText = "Show Function Encoder";
       }
     });
-    
+
     document.getElementById('loadAbiButton').addEventListener('click', () => {
       const abiText = document.getElementById('abiInput').value;
       let abi;
@@ -497,7 +456,7 @@
       document.getElementById('functionSelectorContainer').style.display = "block";
       functionSelector.dispatchEvent(new Event('change'));
     });
-    
+
     document.getElementById('functionSelector').addEventListener('change', (event) => {
       const selectedFunctionJson = event.target.value;
       if (!selectedFunctionJson) {
@@ -525,7 +484,7 @@
       document.getElementById('functionParamsContainer').style.display = "block";
       document.getElementById('encodeFunctionButton').style.display = "block";
     });
-    
+
     document.getElementById('encodeFunctionButton').addEventListener('click', () => {
       const abiText = document.getElementById('abiInput').value;
       let abi;
@@ -558,8 +517,10 @@
         alert("Error encoding function data: " + e.message);
         return;
       }
+      // Update the Data field with the encoded function call.
       document.getElementById('tx_data').value = encodedData;
       alert("Function call encoded and set into the Data field.");
+      // Hide the function encoder section and update the toggle button text.
       document.getElementById('functionEncoder').style.display = "none";
       document.getElementById('toggleFunctionEncoderButton').innerText = "Show Function Encoder";
     });
