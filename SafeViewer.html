@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Safe State & Safe Tx Hash Checker</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    input, button, textarea, select { padding: 0.5rem; margin: 0.5rem 0; width: 100%; max-width: 400px; }
+    .result { margin-top: 1rem; }
+    label { display: block; margin-top: 1rem; }
+    .section { border: 1px solid #ddd; padding: 1rem; margin-bottom: 2rem; }
+    .sub-section { border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; }
+    .inline-button { display: inline-block; vertical-align: middle; margin-left: 0.5rem; }
+    pre { background: #f8f8f8; padding: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Safe State & Safe Tx Hash Checker</h1>
+  
+  <!-- Safe State Section -->
+  <div class="section">
+    <h2>Safe State</h2>
+    <label for="rpc">RPC Endpoint:</label>
+    <input type="text" id="rpc" value="https://rpc.gnosischain.com" />
+    
+    <label for="safeAddress">Safe Address:</label>
+    <input type="text" id="safeAddress" value="0x42cEDde51198D1773590311E2A340DC06B24cB37" />
+    
+    <button id="checkButton">Check Safe State</button>
+    <div class="result">
+      <p><strong>Owners:</strong> <span id="owners">-</span></p>
+      <p><strong>Nonce:</strong> <span id="nonce">-</span></p>
+      <p><strong>Threshold:</strong> <span id="threshold">-</span></p>
+    </div>
+  </div>
+  
+  <!-- Safe Tx Hash Section -->
+  <div class="section">
+    <h2>Get Safe Tx Hash</h2>
+    <label for="tx_to">To Address:</label>
+    <input type="text" id="tx_to" value="0x420CA0f9B9b604cE0fd9C18EF134C705e5Fa3430" />
+    
+    <label for="tx_value">Value (in wei):</label>
+    <input type="text" id="tx_value" value="0" />
+    
+    <label for="tx_data">Data (hex):</label>
+    <div style="display:flex; align-items:center;">
+      <input type="text" id="tx_data" value="0xa9059cbb0000000000000000000000007b2e78d4dfaaba045a167a70da285e30e8fca1960000000000000000000000000000000000000000000000000000000000000001" style="flex:1;" />
+      <button id="toggleFunctionEncoderButton" class="inline-button">Show Function Encoder</button>
+    </div>
+    
+    <label for="tx_operation">Operation (0 for CALL, 1 for DELEGATECALL):</label>
+    <input type="number" id="tx_operation" value="0" min="0" max="1" />
+    
+    <label for="tx_safeTxGas">SafeTxGas:</label>
+    <input type="text" id="tx_safeTxGas" value="0" />
+    
+    <label for="tx_baseGas">BaseGas:</label>
+    <input type="text" id="tx_baseGas" value="0" />
+    
+    <label for="tx_gasPrice">GasPrice:</label>
+    <input type="text" id="tx_gasPrice" value="0" />
+    
+    <label for="tx_gasToken">GasToken Address:</label>
+    <input type="text" id="tx_gasToken" value="0x0000000000000000000000000000000000000000" />
+    
+    <label for="tx_refundReceiver">Refund Receiver Address:</label>
+    <input type="text" id="tx_refundReceiver" value="0x0000000000000000000000000000000000000000" />
+    
+    <label for="tx_nonce">Nonce:</label>
+    <input type="text" id="tx_nonce" value="0" />
+    
+    <button id="getTxHashButton">Get Safe Tx Hash</button>
+    <div class="result">
+      <p><strong>Safe Tx Hash (RPC):</strong> <span id="txHashResult">-</span></p>
+      <p><strong>Safe Tx Hash (Local):</strong> <span id="localTxHashResult">-</span></p>
+      <p><strong>Comparison:</strong> <span id="txHashComparisonResult">-</span></p>
+      <p><strong>ApproveHash Calldata:</strong> <span id="approveHashCalldataResult">-</span></p>
+      <p><strong>Approval Status:</strong></p>
+      <pre id="approvalStatusResult">-</pre>
+      <p id="execTxCalldataContainer" style="display:none;">
+        <strong>Execute Tx Calldata:</strong> <span id="execTxCalldataResult">-</span>
+      </p>
+    </div>
+    
+    <!-- Function Call Encoder Section (hidden by default) -->
+    <div id="functionEncoder" class="sub-section" style="display:none;">
+      <h3>Function Call Encoder</h3>
+      <label for="abiInput">Paste ABI JSON (Default is Full ERC20):</label>
+      <textarea id="abiInput" rows="12">
+[
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "name",
+    "outputs": [{"name": "", "type": "string"}],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {"name": "_spender", "type": "address"},
+      {"name": "_value", "type": "uint256"}
+    ],
+    "name": "approve",
+    "outputs": [{"name": "success", "type": "bool"}],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "totalSupply",
+    "outputs": [{"name": "supply", "type": "uint256"}],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {"name": "_from", "type": "address"},
+      {"name": "_to", "type": "address"},
+      {"name": "_value", "type": "uint256"}
+    ],
+    "name": "transferFrom",
+    "outputs": [{"name": "success", "type": "bool"}],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "decimals",
+    "outputs": [{"name": "", "type": "uint8"}],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [{"name": "_owner", "type": "address"}],
+    "name": "balanceOf",
+    "outputs": [{"name": "balance", "type": "uint256"}],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "symbol",
+    "outputs": [{"name": "", "type": "string"}],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {"name": "_to", "type": "address"},
+      {"name": "_value", "type": "uint256"}
+    ],
+    "name": "transfer",
+    "outputs": [{"name": "success", "type": "bool"}],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {"name": "_owner", "type": "address"},
+      {"name": "_spender", "type": "address"}
+    ],
+    "name": "allowance",
+    "outputs": [{"name": "remaining", "type": "uint256"}],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "name": "from", "type": "address"},
+      {"indexed": true, "name": "to", "type": "address"},
+      {"indexed": false, "name": "value", "type": "uint256"}
+    ],
+    "name": "Transfer",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "name": "owner", "type": "address"},
+      {"indexed": true, "name": "spender", "type": "address"},
+      {"indexed": false, "name": "value", "type": "uint256"}
+    ],
+    "name": "Approval",
+    "type": "event"
+  }
+]
+      </textarea>
+      <button id="loadAbiButton">Load ABI</button>
+      
+      <div id="functionSelectorContainer" style="display:none;">
+        <label for="functionSelector">Select Function:</label>
+        <select id="functionSelector"></select>
+      </div>
+      
+      <div id="functionParamsContainer" style="display:none;">
+        <h4>Function Parameters</h4>
+        <div id="functionParams"></div>
+      </div>
+      <button id="encodeFunctionButton" style="display:none;">Encode Function Call</button>
+    </div>
+    
+  </div>
+
+  <script>
+    // --- Helper function to build a dummy signature for a given owner address ---
+    function buildDummySignature(owner) {
+      // Remove the "0x" prefix if present and make lowercase.
+      let r = owner.toLowerCase().replace(/^0x/, '');
+      // Left-pad r to 64 hex digits
+      r = r.padStart(64, '0');
+      const s = "0".repeat(64); // 32 bytes of zeros
+      const v = "01";           // 1 byte for v
+      return r + s + v;         // Return concatenated string (without 0x prefix)
+    }
+
+    // --- Safe ABI (includes getOwners, nonce, getThreshold, getTransactionHash, approveHash, approvedHashes, and execTransaction) ---
+    const safeABI = [
+      {
+        "inputs": [],
+        "name": "getOwners",
+        "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "nonce",
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "getThreshold",
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "address", "name": "to", "type": "address" },
+          { "internalType": "uint256", "name": "value", "type": "uint256" },
+          { "internalType": "bytes", "name": "data", "type": "bytes" },
+          { "internalType": "uint8", "name": "operation", "type": "uint8" },
+          { "internalType": "uint256", "name": "safeTxGas", "type": "uint256" },
+          { "internalType": "uint256", "name": "baseGas", "type": "uint256" },
+          { "internalType": "uint256", "name": "gasPrice", "type": "uint256" },
+          { "internalType": "address", "name": "gasToken", "type": "address" },
+          { "internalType": "address", "name": "refundReceiver", "type": "address" },
+          { "internalType": "uint256", "name": "_nonce", "type": "uint256" }
+        ],
+        "name": "getTransactionHash",
+        "outputs": [{ "internalType": "bytes32", "name": "", "type": "bytes32" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "bytes32", "name": "hashToApprove", "type": "bytes32" }
+        ],
+        "name": "approveHash",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "address", "name": "", "type": "address" },
+          { "internalType": "bytes32", "name": "", "type": "bytes32" }
+        ],
+        "name": "approvedHashes",
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "address", "name": "to", "type": "address" },
+          { "internalType": "uint256", "name": "value", "type": "uint256" },
+          { "internalType": "bytes", "name": "data", "type": "bytes" },
+          { "internalType": "uint8", "name": "operation", "type": "uint8" },
+          { "internalType": "uint256", "name": "safeTxGas", "type": "uint256" },
+          { "internalType": "uint256", "name": "baseGas", "type": "uint256" },
+          { "internalType": "uint256", "name": "gasPrice", "type": "uint256" },
+          { "internalType": "address", "name": "gasToken", "type": "address" },
+          { "internalType": "address", "name": "refundReceiver", "type": "address" },
+          { "internalType": "bytes", "name": "signatures", "type": "bytes" }
+        ],
+        "name": "execTransaction",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "payable",
+        "type": "function"
+      }
+    ];
+
+    // --- RPC & Local Calculation of Safe Tx Hash & Comparison ---
+    document.getElementById('getTxHashButton').addEventListener('click', async () => {
+      // Clear previous results
+      document.getElementById('txHashResult').innerText = 'Loading...';
+      document.getElementById('localTxHashResult').innerText = 'Loading...';
+      document.getElementById('txHashComparisonResult').innerText = 'Loading...';
+      document.getElementById('approveHashCalldataResult').innerText = 'Loading...';
+      document.getElementById('approvalStatusResult').innerText = 'Loading...';
+      document.getElementById('execTxCalldataContainer').style.display = "none";
+      
+      const rpcEndpoint = document.getElementById('rpc').value;
+      const safeAddress = document.getElementById('safeAddress').value.trim();
+      
+      const to = document.getElementById('tx_to').value.trim();
+      const value = document.getElementById('tx_value').value.trim();
+      const data = document.getElementById('tx_data').value.trim();
+      const operation = parseInt(document.getElementById('tx_operation').value.trim());
+      const safeTxGas = document.getElementById('tx_safeTxGas').value.trim();
+      const baseGas = document.getElementById('tx_baseGas').value.trim();
+      const gasPrice = document.getElementById('tx_gasPrice').value.trim();
+      const gasToken = document.getElementById('tx_gasToken').value.trim();
+      const refundReceiver = document.getElementById('tx_refundReceiver').value.trim();
+      const nonceInput = document.getElementById('tx_nonce').value.trim();
+      
+      try {
+        // Create provider and contract instance via RPC.
+        const provider = new ethers.providers.JsonRpcProvider(rpcEndpoint);
+        const safeContract = new ethers.Contract(safeAddress, safeABI, provider);
+        
+        // 1. Compute Safe Tx Hash via RPC.
+        const rpcSafeTxHash = await safeContract.getTransactionHash(
+          to,
+          value,
+          data,
+          operation,
+          safeTxGas,
+          baseGas,
+          gasPrice,
+          gasToken,
+          refundReceiver,
+          nonceInput
+        );
+        document.getElementById('txHashResult').innerText = rpcSafeTxHash;
+        
+        // 2. Compute Safe Tx Hash locally using EIP‑712.
+        let localSafeTxHash;
+        try {
+          const network = await provider.getNetwork();
+          const localDomain = {
+            name: "Gnosis Safe",
+            version: "1.1.1",
+            chainId: network.chainId,
+            verifyingContract: safeAddress
+          };
+          const types = {
+            SafeTx: [
+              { name: "to", type: "address" },
+              { name: "value", type: "uint256" },
+              { name: "data", type: "bytes" },
+              { name: "operation", type: "uint8" },
+              { name: "safeTxGas", type: "uint256" },
+              { name: "baseGas", type: "uint256" },
+              { name: "gasPrice", type: "uint256" },
+              { name: "gasToken", type: "address" },
+              { name: "refundReceiver", type: "address" },
+              { name: "nonce", type: "uint256" }
+            ]
+          };
+          const message = {
+            to: to,
+            value: value,
+            data: data,
+            operation: operation,
+            safeTxGas: safeTxGas,
+            baseGas: baseGas,
+            gasPrice: gasPrice,
+            gasToken: gasToken,
+            refundReceiver: refundReceiver,
+            nonce: nonceInput
+          };
+          localSafeTxHash = ethers.utils._TypedDataEncoder.hash(localDomain, types, message);
+        } catch (e) {
+          localSafeTxHash = "Error: " + e.message;
+        }
+        document.getElementById('localTxHashResult').innerText = localSafeTxHash;
+        
+        // 3. Compare the two hashes.
+        if (rpcSafeTxHash === localSafeTxHash) {
+          document.getElementById('txHashComparisonResult').innerText = "MATCH";
+        } else {
+          document.getElementById('txHashComparisonResult').innerText = "DO NOT MATCH";
+        }
+        
+        // 4. Encode the calldata for approveHash using the RPC hash.
+        const iface = new ethers.utils.Interface(safeABI);
+        const approveHashCalldata = iface.encodeFunctionData("approveHash", [rpcSafeTxHash]);
+        document.getElementById('approveHashCalldataResult').innerText = approveHashCalldata;
+        
+        // 5. Check approval status for each owner.
+        const owners = await safeContract.getOwners();
+        let statusList = "";
+        let approvedOwners = [];
+        for (const owner of owners) {
+          const approved = await safeContract.approvedHashes(owner, rpcSafeTxHash);
+          const isApproved = approved.gt(0);
+          if (isApproved) {
+            approvedOwners.push(owner);
+          }
+          statusList += `${owner}: ${isApproved ? "Approved" : "Not Approved"}\n`;
+        }
+        document.getElementById('approvalStatusResult').innerText = statusList;
+        
+        // 6. If approvals meet/exceed threshold, build signatures parameter.
+        const threshold = parseInt(document.getElementById('threshold').innerText);
+        if (approvedOwners.length >= threshold) {
+          let signaturesConcat = "";
+          for (let i = 0; i < threshold; i++) {
+            const sig = buildDummySignature(approvedOwners[i]); // Build a dummy signature for each approving owner
+            signaturesConcat += sig;
+          }
+          signaturesConcat = "0x" + signaturesConcat;
+          // 7. Encode execTransaction calldata with the concatenated signatures.
+          const execIface = new ethers.utils.Interface(safeABI);
+          const execTxCalldata = execIface.encodeFunctionData("execTransaction", [
+            to,
+            value,
+            data,
+            operation,
+            safeTxGas,
+            baseGas,
+            gasPrice,
+            gasToken,
+            refundReceiver,
+            signaturesConcat
+          ]);
+          document.getElementById('execTxCalldataResult').innerText = execTxCalldata;
+          document.getElementById('execTxCalldataContainer').style.display = "block";
+        } else {
+          document.getElementById('execTxCalldataContainer').style.display = "none";
+        }
+      } catch (error) {
+        console.error(error);
+        document.getElementById('txHashResult').innerText = 'Error fetching safe tx hash';
+        document.getElementById('localTxHashResult').innerText = 'Error computing local tx hash';
+        document.getElementById('txHashComparisonResult').innerText = 'Error comparing hashes';
+        document.getElementById('approveHashCalldataResult').innerText = 'Error encoding approveHash calldata';
+        document.getElementById('approvalStatusResult').innerText = 'Error checking approval status';
+      }
+    });
+    
+    // --- Function Call Encoder (toggle section) ---
+    document.getElementById('toggleFunctionEncoderButton').addEventListener('click', () => {
+      const encoder = document.getElementById('functionEncoder');
+      if (encoder.style.display === "none") {
+        encoder.style.display = "block";
+        document.getElementById('toggleFunctionEncoderButton').innerText = "Hide Function Encoder";
+      } else {
+        encoder.style.display = "none";
+        document.getElementById('toggleFunctionEncoderButton').innerText = "Show Function Encoder";
+      }
+    });
+    
+    document.getElementById('loadAbiButton').addEventListener('click', () => {
+      const abiText = document.getElementById('abiInput').value;
+      let abi;
+      try {
+        abi = JSON.parse(abiText);
+      } catch (e) {
+        alert("Invalid ABI JSON");
+        return;
+      }
+      const functions = abi.filter(item => item.type === "function");
+      const functionSelector = document.getElementById('functionSelector');
+      functionSelector.innerHTML = "";
+      functions.forEach(func => {
+        const option = document.createElement('option');
+        option.value = JSON.stringify(func);
+        option.text = func.name;
+        functionSelector.appendChild(option);
+      });
+      document.getElementById('functionSelectorContainer').style.display = "block";
+      functionSelector.dispatchEvent(new Event('change'));
+    });
+    
+    document.getElementById('functionSelector').addEventListener('change', (event) => {
+      const selectedFunctionJson = event.target.value;
+      if (!selectedFunctionJson) {
+        document.getElementById('functionParamsContainer').style.display = "none";
+        document.getElementById('encodeFunctionButton').style.display = "none";
+        return;
+      }
+      const selectedFunction = JSON.parse(selectedFunctionJson);
+      const paramsContainer = document.getElementById('functionParams');
+      paramsContainer.innerHTML = "";
+      if (selectedFunction.inputs && selectedFunction.inputs.length > 0) {
+        selectedFunction.inputs.forEach((input, index) => {
+          const label = document.createElement('label');
+          label.innerText = `${input.name} (${input.type}):`;
+          label.style.display = "block";
+          const inputField = document.createElement('input');
+          inputField.type = "text";
+          inputField.id = `param_${index}`;
+          paramsContainer.appendChild(label);
+          paramsContainer.appendChild(inputField);
+        });
+      } else {
+        paramsContainer.innerText = "No parameters for this function.";
+      }
+      document.getElementById('functionParamsContainer').style.display = "block";
+      document.getElementById('encodeFunctionButton').style.display = "block";
+    });
+    
+    document.getElementById('encodeFunctionButton').addEventListener('click', () => {
+      const abiText = document.getElementById('abiInput').value;
+      let abi;
+      try {
+        abi = JSON.parse(abiText);
+      } catch (e) {
+        alert("Invalid ABI JSON");
+        return;
+      }
+      const iface = new ethers.utils.Interface(abi);
+      const functionSelector = document.getElementById('functionSelector');
+      const selectedFunctionJson = functionSelector.value;
+      if (!selectedFunctionJson) {
+        alert("No function selected.");
+        return;
+      }
+      const selectedFunction = JSON.parse(selectedFunctionJson);
+      const functionName = selectedFunction.name;
+      let args = [];
+      if (selectedFunction.inputs && selectedFunction.inputs.length > 0) {
+        for (let i = 0; i < selectedFunction.inputs.length; i++) {
+          const inputField = document.getElementById(`param_${i}`);
+          args.push(inputField.value);
+        }
+      }
+      let encodedData;
+      try {
+        encodedData = iface.encodeFunctionData(functionName, args);
+      } catch (e) {
+        alert("Error encoding function data: " + e.message);
+        return;
+      }
+      document.getElementById('tx_data').value = encodedData;
+      alert("Function call encoded and set into the Data field.");
+      document.getElementById('functionEncoder').style.display = "none";
+      document.getElementById('toggleFunctionEncoderButton').innerText = "Show Function Encoder";
+    });
+  </script>
+</body>
+</html>
