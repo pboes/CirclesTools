@@ -221,6 +221,16 @@
   </div>
 
   <script>
+    // --- Helper function to build a dummy signature for a given owner address ---
+    function buildDummySignature(owner) {
+      // Remove "0x" and pad left to 64 hex digits.
+      let r = owner.toLowerCase().replace(/^0x/, '');
+      r = r.padStart(64, '0');
+      const s = "0".repeat(64); // 32 bytes of zeros
+      const v = "01";           // 1 byte for v
+      return r + s + v;         // Concatenate without 0x prefix
+    }
+
     // --- Safe ABI (includes getOwners, nonce, getThreshold, getTransactionHash, approveHash, approvedHashes, and execTransaction) ---
     const safeABI = [
       {
@@ -301,9 +311,6 @@
       }
     ];
 
-    // Dummy signature (65 bytes)
-    const dummySignature = "0x0000000000000000000000007b2e78d4dfaaba045a167a70da285e30e8fca1960000000000000000000000000000000000000000000000000000000000000001";
-
     // --- Safe State and Safe Tx Hash functions ---
     document.getElementById('checkButton').addEventListener('click', async () => {
       document.getElementById('owners').innerText = 'Loading...';
@@ -336,7 +343,6 @@
     });
 
     document.getElementById('getTxHashButton').addEventListener('click', async () => {
-      // Clear previous results
       document.getElementById('txHashResult').innerText = 'Loading...';
       document.getElementById('approveHashCalldataResult').innerText = 'Loading...';
       document.getElementById('approvalStatusResult').innerText = 'Loading...';
@@ -380,23 +386,30 @@
         const approveHashCalldata = iface.encodeFunctionData("approveHash", [safeTxHash]);
         document.getElementById('approveHashCalldataResult').innerText = approveHashCalldata;
 
-        // Check for each owner whether this safe tx hash was approved.
+        // Check approval status for each owner and build a list of approving owners.
         const owners = await safeContract.getOwners();
         let statusList = "";
-        let approvedCount = 0;
+        let approvedOwners = [];
         for (const owner of owners) {
           const approved = await safeContract.approvedHashes(owner, safeTxHash);
           const isApproved = approved.gt(0);
-          if (isApproved) approvedCount++;
+          if (isApproved) {
+            approvedOwners.push(owner);
+          }
           statusList += `${owner}: ${isApproved ? "Approved" : "Not Approved"}\n`;
         }
         document.getElementById('approvalStatusResult').innerText = statusList;
 
-        // If approvedCount is at least the threshold, encode execTransaction calldata.
         const threshold = parseInt(document.getElementById('threshold').innerText);
-        if (approvedCount >= threshold) {
-          // Prepare execTransaction calldata.
-          // Note: Using the dummy signature as described.
+        if (approvedOwners.length >= threshold) {
+          // Build the signatures parameter by concatenating dummy signatures for the first 'threshold' approving owners.
+          let signaturesConcat = "";
+          for (let i = 0; i < threshold; i++) {
+            const sig = buildDummySignature(approvedOwners[i]); // returns string without 0x
+            signaturesConcat += sig;
+          }
+          signaturesConcat = "0x" + signaturesConcat;
+          // Encode execTransaction calldata with the concatenated signatures.
           const execIface = new ethers.utils.Interface(safeABI);
           const execTxCalldata = execIface.encodeFunctionData("execTransaction", [
             to,
@@ -408,7 +421,7 @@
             gasPrice,
             gasToken,
             refundReceiver,
-            dummySignature
+            signaturesConcat
           ]);
           document.getElementById('execTxCalldataResult').innerText = execTxCalldata;
           document.getElementById('execTxCalldataContainer').style.display = "block";
@@ -423,7 +436,7 @@
       }
     });
 
-    // --- Function Call Encoder ---
+    // --- Function Call Encoder (toggle section) ---
     document.getElementById('toggleFunctionEncoderButton').addEventListener('click', () => {
       const encoder = document.getElementById('functionEncoder');
       if (encoder.style.display === "none") {
@@ -517,10 +530,8 @@
         alert("Error encoding function data: " + e.message);
         return;
       }
-      // Update the Data field with the encoded function call.
       document.getElementById('tx_data').value = encodedData;
       alert("Function call encoded and set into the Data field.");
-      // Hide the function encoder section and update the toggle button text.
       document.getElementById('functionEncoder').style.display = "none";
       document.getElementById('toggleFunctionEncoderButton').innerText = "Show Function Encoder";
     });
