@@ -384,6 +384,9 @@
         // Add ERC20 (demurraged) for main user.
         html += `<div class="info"><strong>ERC20 (demurraged):</strong> ${mainDemurraged}</div>`;
 
+        // Add Trusted Connections Count
+        html += `<div class="info"><strong>[V2] Trusted Connections Count:</strong> ${trustedAddresses.length}</div>`;
+
         // ----- TRUSTED ADDRESSES TABLE -----
         if (trustedAddresses.length > 0) {
           html += `<div class="info"><strong>[V2] Trusted Addresses:</strong></div>`;
