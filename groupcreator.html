@@ -67,7 +67,6 @@
   <h1>Gnosis Safe Group Creator</h1>
   <form id="createGroupForm">
     <label for="service">Service Address:</label>
-    <!-- Will be prefilled with the connected address -->
     <input type="text" id="service" value="0x0000000000000000000000000000000000000000" required />
 
     <label for="conditions">Initial Conditions (comma separated):</label>
@@ -105,8 +104,8 @@
       const signer = provider.getSigner();
       
       // Set the service input to the connected (signer's) address
-      const connectedAddress = await signer.getAddress();
-      document.getElementById('service').value = connectedAddress;
+      // const connectedAddress = await signer.getAddress();
+      // document.getElementById('service').value = connectedAddress;
       
       // Contract details for the group creator
       // const contractAddress = "0x55785b41703728f1F1F05E77e22B13c3FCc9ce65";
