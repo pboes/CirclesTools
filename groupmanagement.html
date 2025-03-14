@@ -152,7 +152,7 @@
     // Global variables for provider, signer, and the group contract instance.
     let provider, signer, groupContract;
     
-    // ABI for the group contract (includes trustBatch for batch trust/untrust).
+    // ABI for the group contract (includes trustBatchWithConditions for batch trust/untrust).
     const groupABI = [
       "function owner() external view returns (address)",
       "function service() external view returns (address)",
@@ -165,7 +165,7 @@
       "function setRedemptionHandler(address _redemptionHandler) external",
       "function setMinimalDeposit(uint256 _minimalDeposit) external",
       "function setFeeCollection(address _feeCollection) external",
-      "function trustBatch(address[] memory _coreMembers, uint96 _expiry) external"
+      "function trustBatchWithConditions(address[] memory _coreMembers, uint96 _expiry) external"
     ];
     
     // Initialize provider and signer using the injected Ethereum provider.
@@ -249,7 +249,7 @@
       }
     }
     
-    // Function to add one or more members using trustBatch with a non-zero expiry.
+    // Function to add one or more members using trustBatchWithConditions with a non-zero expiry.
     async function addMembers() {
       if (!groupContract) return;
       let inputStr = document.getElementById("members").value.trim();
@@ -270,7 +270,7 @@
       let expiry = (!expiryInput || isNaN(expiryInput)) ? 9999999999 : Number(expiryInput);
     
       try {
-        const tx = await groupContract.trustBatch(addresses, expiry);
+        const tx = await groupContract.trustBatchWithConditions(addresses, expiry);
         document.getElementById("memberStatus").innerText = `Transaction submitted: ${tx.hash}\nWaiting for confirmation...`;
         await tx.wait();
         document.getElementById("memberStatus").innerText = `Members added successfully! Tx hash: ${tx.hash}`;
@@ -280,7 +280,7 @@
       }
     }
     
-    // Function to remove trust for one or more members using trustBatch with expiry set to 0.
+    // Function to remove trust for one or more members using trustBatchWithConditions with expiry set to 0.
     async function removeMembers() {
       if (!groupContract) return;
       let inputStr = document.getElementById("removeMembers").value.trim();
@@ -298,7 +298,7 @@
       }
       try {
         // Set expiry to 0 to remove trust.
-        const tx = await groupContract.trustBatch(addresses, 0);
+        const tx = await groupContract.trustBatchWithConditions(addresses, 0);
         document.getElementById("removeStatus").innerText = `Transaction submitted: ${tx.hash}\nWaiting for confirmation...`;
         await tx.wait();
         document.getElementById("removeStatus").innerText = `Trust removed successfully for provided addresses! Tx hash: ${tx.hash}`;
