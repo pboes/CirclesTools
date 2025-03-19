@@ -185,7 +185,7 @@
     const groupGetterAddress = "0xD4de76d83239ef8D2257C966850fE6Cf19f4b434";
     
     // Initialize ethers provider (Gnosis chain)
-    const provider = new ethers.providers.JsonRpcProvider("https://rpc.ankr.com/gnosis");
+    const provider = new ethers.providers.JsonRpcProvider("https://rpc.aboutcircles.com");
     const groupGetterContract = new ethers.Contract(groupGetterAddress, groupGetterABI, provider);
     
     const checkButton = document.getElementById("checkButton");
