@@ -163,7 +163,7 @@
     const avatarERC20Address = "0xeBe64dd348d1204391f6617f632cF99Af0b75561";
 
     // Ethers.js provider (Gnosis chain)
-    const provider = new ethers.providers.JsonRpcProvider("https://rpc.ankr.com/gnosis");
+    const provider = new ethers.providers.JsonRpcProvider("https://rpc.aboutcircles.com");
 
     // Contract instances
     const helperContract = new ethers.Contract(helperAddress, helperABI, provider);
@@ -383,6 +383,9 @@
         }
         // Add ERC20 (demurraged) for main user.
         html += `<div class="info"><strong>ERC20 (demurraged):</strong> ${mainDemurraged}</div>`;
+
+        // Add Trusted Connections Count
+        html += `<div class="info"><strong>[V2] Trusted Connections Count:</strong> ${trustedAddresses.length}</div>`;
 
         // ----- TRUSTED ADDRESSES TABLE -----
         if (trustedAddresses.length > 0) {

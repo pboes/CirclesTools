@@ -67,8 +67,7 @@
   <h1>Gnosis Safe Group Creator</h1>
   <form id="createGroupForm">
     <label for="service">Service Address:</label>
-    <!-- Will be prefilled with the connected address -->
-    <input type="text" id="service" value="" required />
+    <input type="text" id="service" value="0x0000000000000000000000000000000000000000" required />
 
     <label for="conditions">Initial Conditions (comma separated):</label>
     <!-- Leave empty for no initial conditions -->
@@ -76,11 +75,11 @@
 
     <label for="name">Group Name:</label>
     <!-- Default group name -->
-    <input type="text" id="name" value="My Group Name" required />
+    <input type="text" id="name" placeholder="Immutable" required />
 
     <label for="symbol">Symbol:</label>
     <!-- Default symbol -->
-    <input type="text" id="symbol" value="SYMBOL" required />
+    <input type="text" id="symbol" placeholder="Immutable" required />
 
     <label for="metadata">Metadata Digest (bytes32 hex):</label>
     <!-- Prefilled with the 32-byte zero value -->
@@ -105,61 +104,197 @@
       const signer = provider.getSigner();
       
       // Set the service input to the connected (signer's) address
-      const connectedAddress = await signer.getAddress();
-      document.getElementById('service').value = connectedAddress;
+      // const connectedAddress = await signer.getAddress();
+      // document.getElementById('service').value = connectedAddress;
       
       // Contract details for the group creator
-      const contractAddress = "0x9d3232483A40A5149a2600A5b6Fb85CFddc487b6";
+      const contractAddress = "0xFEca40Eb02FB1f4F5F795fC7a03c1A27819B1Ded"; // production preview CMG contract
       const abi = [
-        {
-          "inputs": [],
-          "stateMutability": "nonpayable",
-          "type": "constructor"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            { "indexed": true, "internalType": "address", "name": "proxy", "type": "address" },
-            { "indexed": true, "internalType": "address", "name": "owner", "type": "address" },
-            { "indexed": true, "internalType": "address", "name": "mintHandler", "type": "address" },
-            { "indexed": false, "internalType": "address", "name": "redemptionHandler", "type": "address" }
-          ],
-          "name": "CMGroupCreated",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            { "indexed": true, "internalType": "address", "name": "mastercopy", "type": "address" }
-          ],
-          "name": "MasterCopyDeployed",
-          "type": "event"
-        },
-        {
-          "inputs": [
-            { "internalType": "address", "name": "_service", "type": "address" },
-            { "internalType": "address[]", "name": "_initialConditions", "type": "address[]" },
-            { "internalType": "string", "name": "_name", "type": "string" },
-            { "internalType": "string", "name": "_symbol", "type": "string" },
-            { "internalType": "bytes32", "name": "_metadataDigest", "type": "bytes32" }
-          ],
-          "name": "createCMGroup",
-          "outputs": [
-            { "internalType": "address", "name": "", "type": "address" }
-          ],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "masterCopyCMGroup",
-          "outputs": [
-            { "internalType": "contract CoreMembersGroup", "name": "", "type": "address" }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        }
-      ];
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "proxy",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "mintHandler",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "redemptionHandler",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "liquidityProvider",
+        "type": "address"
+      }
+    ],
+    "name": "CMGroupCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "mastercopy",
+        "type": "address"
+      }
+    ],
+    "name": "MasterCopyDeployed",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_service",
+        "type": "address"
+      },
+      {
+        "internalType": "address[]",
+        "name": "_initialConditions",
+        "type": "address[]"
+      },
+      {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_symbol",
+        "type": "string"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_metadataDigest",
+        "type": "bytes32"
+      }
+    ],
+    "name": "createCMGroup",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "proxy",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "mintHandler",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "redemptionHandler",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "liquidityProvider",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCirclesCore",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "contract IHub",
+            "name": "hub",
+            "type": "address"
+          },
+          {
+            "internalType": "contract IStandardTreasury",
+            "name": "standardTreasury",
+            "type": "address"
+          },
+          {
+            "internalType": "contract INameRegistryExtended",
+            "name": "nameRegistry",
+            "type": "address"
+          },
+          {
+            "internalType": "contract IERC20Lift",
+            "name": "erc20Lift",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct CirclesCoreAddresses.CirclesCore",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "lpDeployer",
+    "outputs": [
+      {
+        "internalType": "contract GroupLiquidityProviderDeployer",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "masterCopyCMGroup",
+    "outputs": [
+      {
+        "internalType": "contract CoreMembersGroup",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "redemptionOperator",
+    "outputs": [
+      {
+        "internalType": "contract CMGRedemptionOperator",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+      ]
+
       
       // Create a contract instance with the signer
       const contract = new ethers.Contract(contractAddress, abi, signer);

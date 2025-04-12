@@ -160,7 +160,7 @@
       "function getAllDataForUser(address user) external view returns (tuple(bool isOrg, bool isHuman, uint256 totalSupply, bool stopped, uint256 lastTouched) v1Data, tuple(bool isHuman, bool isOrg, bool isGroup, uint256 crcAmount, uint256 ts1, uint256 ts2, uint256 totalSupply) v2Data, tuple(address trustedAddress, uint256 expiry, bool v1Org, bool v1Human, bool v2Human, bool v2Org, bool v2Group, uint256 v2TotalSupply, uint256 userHolds)[] trustedAddresses)"
     ];
     const helperAddress = "0xD5934724C19f9DbEeBC263066D627872e55e63Aa";
-    const provider = new ethers.providers.JsonRpcProvider("https://rpc.ankr.com/gnosis");
+    const provider = new ethers.providers.JsonRpcProvider("https://rpc.aboutcircles.com");
     const helperContract = new ethers.Contract(helperAddress, helperABI, provider);
 
     // --- Graph Data Structures ---
