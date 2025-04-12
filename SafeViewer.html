@@ -402,6 +402,9 @@
 
         const threshold = parseInt(document.getElementById('threshold').innerText);
         if (approvedOwners.length >= threshold) {
+          // Signatures must be sorted by the signer address and concatenated
+          approvedOwners.sort();
+
           // Build the signatures parameter by concatenating dummy signatures for the first 'threshold' approving owners.
           let signaturesConcat = "";
           for (let i = 0; i < threshold; i++) {
