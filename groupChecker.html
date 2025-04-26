@@ -613,16 +613,30 @@
                         // Static ERC20 Price
                         const staticPriceCell = document.createElement('td');
                         staticPriceCell.textContent = 'Loading...';
+                        // Always create a poolDiv for Balancer icons
+                        const staticPoolDiv = document.createElement('div');
+                        staticPoolDiv.style.display = 'flex';
+                        staticPoolDiv.style.gap = '4px';
+                        staticPriceCell.appendChild(staticPoolDiv);
                         row.appendChild(staticPriceCell);
-                        getPrice(info.demurragedERC20).then(price => {
+                        getPrice(info.demurragedERC20).then(function updateStaticPrice(price) {
                             staticPriceCell.textContent = price;
+                            staticPriceCell.appendChild(staticPoolDiv);
+                            if (price === 'N/A') {
+                                setTimeout(() => {
+                                    getPrice(info.demurragedERC20).then(updateStaticPrice);
+                                }, 5000);
+                            }
                         });
-                        // Add Balancer pools for Static ERC20
-                        getPoolsForToken(info.demurragedERC20).then(pools => {
+                        function updateStaticPools(pools, error) {
+                            staticPoolDiv.innerHTML = '';
+                            if (error) {
+                                setTimeout(() => {
+                                    getPoolsForToken(info.demurragedERC20).then((p) => updateStaticPools(p, null)).catch(() => updateStaticPools([], true));
+                                }, 5000);
+                                return;
+                            }
                             if (pools.length > 0) {
-                                const poolDiv = document.createElement('div');
-                                poolDiv.style.display = 'flex';
-                                poolDiv.style.gap = '4px';
                                 pools.forEach(pool => {
                                     const balancerBtn = document.createElement('button');
                                     balancerBtn.className = 'icon-btn';
@@ -632,11 +646,15 @@
                                         e.preventDefault();
                                         window.open(`https://balancer.fi/pools/gnosis/v2/${pool.id}`, '_blank');
                                     };
-                                    poolDiv.appendChild(balancerBtn);
+                                    staticPoolDiv.appendChild(balancerBtn);
                                 });
-                                staticPriceCell.appendChild(poolDiv);
                             }
-                        });
+                        }
+                        (function fetchStaticPools() {
+                            getPoolsForToken(info.demurragedERC20)
+                                .then(p => updateStaticPools(p, null))
+                                .catch(() => updateStaticPools([], true));
+                        })();
                         // Static ERC20 Supply
                         row.appendChild(document.createElement('td')).textContent = ethers.utils.formatEther(info.demurragedERC20TotalSupply || 0);
                         // Demurraged ERC20 (actually static)
@@ -644,16 +662,30 @@
                         // Demurraged ERC20 Price
                         const demurragedPriceCell = document.createElement('td');
                         demurragedPriceCell.textContent = 'Loading...';
+                        // Always create a poolDiv for Balancer icons
+                        const demurragedPoolDiv = document.createElement('div');
+                        demurragedPoolDiv.style.display = 'flex';
+                        demurragedPoolDiv.style.gap = '4px';
+                        demurragedPriceCell.appendChild(demurragedPoolDiv);
                         row.appendChild(demurragedPriceCell);
-                        getPrice(info.staticERC20).then(price => {
+                        getPrice(info.staticERC20).then(function updateDemurragedPrice(price) {
                             demurragedPriceCell.textContent = price;
+                            demurragedPriceCell.appendChild(demurragedPoolDiv);
+                            if (price === 'N/A') {
+                                setTimeout(() => {
+                                    getPrice(info.staticERC20).then(updateDemurragedPrice);
+                                }, 5000);
+                            }
                         });
-                        // Add Balancer pools for Demurraged ERC20
-                        getPoolsForToken(info.staticERC20).then(pools => {
+                        function updateDemurragedPools(pools, error) {
+                            demurragedPoolDiv.innerHTML = '';
+                            if (error) {
+                                setTimeout(() => {
+                                    getPoolsForToken(info.staticERC20).then((p) => updateDemurragedPools(p, null)).catch(() => updateDemurragedPools([], true));
+                                }, 5000);
+                                return;
+                            }
                             if (pools.length > 0) {
-                                const poolDiv = document.createElement('div');
-                                poolDiv.style.display = 'flex';
-                                poolDiv.style.gap = '4px';
                                 pools.forEach(pool => {
                                     const balancerBtn = document.createElement('button');
                                     balancerBtn.className = 'icon-btn';
@@ -663,11 +695,15 @@
                                         e.preventDefault();
                                         window.open(`https://balancer.fi/pools/gnosis/v2/${pool.id}`, '_blank');
                                     };
-                                    poolDiv.appendChild(balancerBtn);
+                                    demurragedPoolDiv.appendChild(balancerBtn);
                                 });
-                                demurragedPriceCell.appendChild(poolDiv);
                             }
-                        });
+                        }
+                        (function fetchDemurragedPools() {
+                            getPoolsForToken(info.staticERC20)
+                                .then(p => updateDemurragedPools(p, null))
+                                .catch(() => updateDemurragedPools([], true));
+                        })();
                         // Demurraged ERC20 Supply
                         row.appendChild(document.createElement('td')).textContent = ethers.utils.formatEther(info.staticERC20TotalSupply || 0);
                         // ERC1155 Total Supply
