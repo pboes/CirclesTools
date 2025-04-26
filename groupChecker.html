@@ -474,10 +474,10 @@
                         'Static ERC20', 'Static ERC20 Price', 'Static ERC20 Supply',
                         'Demurraged ERC20', 'Demurraged ERC20 Price', 'Demurraged ERC20 Supply',
                         'ERC1155 Total Supply', 'Balance',
-                        'Membership Conditions', 'Service', 'Base Mint Policy', 'Base Treasury'
+                        'Membership Conditions', 'Service', 'Base Mint Handler', 'Base Mint Policy', 'Base Treasury'
                     ];
 
-                    headers.forEach(headerText => {
+                    headers.forEach((headerText, idx) => {
                         const th = document.createElement("th");
                         th.textContent = headerText;
                         headerRow.appendChild(th);
@@ -732,8 +732,11 @@
                             conditionsCell.textContent = 'None';
                         }
                         row.appendChild(conditionsCell);
-                        // Service, Base Mint Policy, Base Treasury (rightmost)
+                        // Service, Base Mint Handler, Base Mint Policy, Base Treasury (rightmost)
                         row.appendChild(createAddressCell(info.service, false, true));
+                        // Base Mint Handler cell with debug class
+                        const baseMintHandlerCell = createAddressCell(info.baseMintHandler, false, false, true);
+                        row.appendChild(baseMintHandlerCell);
                         row.appendChild(createAddressCell(info.baseMintPolicy, false, false, false, true));
                         row.appendChild(createAddressCell(info.baseTreasury, false, false, false, true));
 
