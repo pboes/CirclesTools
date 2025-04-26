@@ -177,26 +177,53 @@
     /********************************************************
      *  Profile name lookup
      ********************************************************/
-    async function getProfileName(address) {
+    async function getProfileNames(addresses) {
       try {
-        const queryAddress = address.toLowerCase();
-        const url = `https://rpc.aboutcircles.com/profiles/search?address=${queryAddress}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-          return "No name";
-        }
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          const profile = data.find(entry => 
-            entry.address.toLowerCase() === queryAddress
-          );
-          return profile?.name || "No name";
-        }
-        return "No name";
+        // Convert all addresses to lowercase for comparison
+        const queryAddresses = addresses.map(addr => addr.toLowerCase());
+        const uniqueAddresses = [...new Set(queryAddresses)];
+        
+        // Create a map to store results
+        const nameMap = {};
+        
+        // Make a single request for each unique address
+        const requests = uniqueAddresses.map(async (address) => {
+          const url = `https://rpc.aboutcircles.com/profiles/search?address=${address}`;
+          const response = await fetch(url);
+          if (!response.ok) {
+            nameMap[address] = "No name";
+            return;
+          }
+          const data = await response.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const profile = data.find(entry => 
+              entry.address.toLowerCase() === address
+            );
+            nameMap[address] = profile?.name || "No name";
+          } else {
+            nameMap[address] = "No name";
+          }
+        });
+        
+        // Wait for all requests to complete
+        await Promise.all(requests);
+        
+        // Return the map of addresses to names
+        return nameMap;
       } catch (error) {
-        console.error("Error fetching profile for", address, error);
-        return "No name";
+        console.error("Error fetching profiles:", error);
+        // Return a map with "No name" for all addresses in case of error
+        return addresses.reduce((acc, addr) => {
+          acc[addr.toLowerCase()] = "No name";
+          return acc;
+        }, {});
       }
+    }
+
+    // Keep the old function for backward compatibility
+    async function getProfileName(address) {
+      const nameMap = await getProfileNames([address]);
+      return nameMap[address.toLowerCase()];
     }
 
     /********************************************************
@@ -465,10 +492,18 @@
         const nameCells = document.querySelectorAll(".address-name");
         const priceCells = document.querySelectorAll(".price");
 
+        // Get all addresses that need names
+        const addressesNeedingNames = Array.from(nameCells).map(cell => 
+          cell.getAttribute("data-address")
+        );
+        
+        // Get names for all addresses in one batch
+        const nameMap = await getProfileNames(addressesNeedingNames);
+        
+        // Update all name cells
         for (const cell of nameCells) {
           const addr = cell.getAttribute("data-address");
-          const profileName = await getProfileName(addr);
-          cell.textContent = profileName;
+          cell.textContent = nameMap[addr.toLowerCase()];
         }
 
         for (const cell of priceCells) {
