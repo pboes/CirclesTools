@@ -32,8 +32,8 @@
                 font-weight: 400;
             }
             .container {
-                max-width: 800px;
-                margin: 40px auto;
+                max-width: 900px;
+                margin: 40px 0 40px 0;
                 padding: 0 20px;
             }
             label {
@@ -49,19 +49,43 @@
                 border-radius: 4px;
                 font-size: 1rem;
             }
-            button {
-                margin-top: 10px;
-                padding: 10px 20px;
-                background: #5c49e4;
-                color: #fff;
+            button, .icon-btn {
+                margin-top: 0;
+                padding: 6px;
+                background: #f4f4ff;
+                color: #5c49e4;
                 border: none;
-                border-radius: 4px;
+                border-radius: 50%;
                 cursor: pointer;
-                font-size: 1rem;
-                font-weight: 600;
+                font-size: 1.1rem;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                transition: background 0.2s;
+                width: 32px;
+                height: 32px;
+                margin-left: 2px;
+                margin-right: 0;
             }
-            button:hover {
-                background: #4a39cc;
+            button:hover, .icon-btn:hover {
+                background: #e0e0fa;
+            }
+            .icon-btn[title] {
+                position: relative;
+            }
+            .icon-btn[title]:hover:after {
+                content: attr(title);
+                position: absolute;
+                left: 50%;
+                top: 110%;
+                transform: translateX(-50%);
+                background: #222;
+                color: #fff;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 0.85rem;
+                white-space: nowrap;
+                z-index: 10;
             }
             #result {
                 margin-top: 20px;
@@ -85,28 +109,35 @@
                 text-decoration: underline;
             }
             table {
-                border-collapse: collapse;
+                border-collapse: separate;
+                border-spacing: 0 8px;
                 margin-top: 10px;
                 width: 100%;
-                font-size: 0.95rem;
+                font-size: 0.97rem;
                 background: #fff;
-                border-radius: 6px;
+                border-radius: 8px;
                 overflow: hidden;
                 border: 1px solid #eee;
+                box-shadow: 0 2px 12px 0 rgba(92,73,228,0.07);
             }
             th,
             td {
                 text-align: left;
-                padding: 10px;
+                padding: 12px 10px;
                 white-space: nowrap;
+                vertical-align: middle;
             }
             th {
                 background: #f9f9fc;
                 font-weight: 600;
                 border-bottom: 1px solid #eee;
             }
+            tr {
+                background: #fff;
+                border-radius: 8px;
+            }
             tr:nth-child(even) {
-                background: #fafafa;
+                background: #f6f6fb;
             }
             tr:hover td {
                 background: #f3f3f7;
@@ -114,27 +145,51 @@
             td {
                 border-bottom: 1px solid #eee;
             }
-            strong {
+            .address-container {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                width: 100%;
+            }
+            .address-main {
+                font-weight: 400;
+                font-size: 0.98em;
+                color: #5c49e4;
+                margin-bottom: 2px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                width: 100%;
+            }
+            .profile-name {
                 font-weight: 600;
+                color: #222;
+                font-size: 1em;
+                margin-bottom: 2px;
             }
-            .loader {
-                border: 4px solid #f3f3f3;
-                border-top: 4px solid #5c49e4;
+            .address-hex { display: none; }
+            ul {
+                margin: 0;
+                padding-left: 18px;
+            }
+            .mint-btn {
+                background: #f4f4ff;
+                color: #5c49e4;
+                border: none;
                 border-radius: 50%;
-                width: 24px;
-                height: 24px;
-                animation: spin 1s linear infinite;
-                display: inline-block;
-                vertical-align: middle;
-                margin-left: 10px;
+                cursor: pointer;
+                font-size: 1.1rem;
+                width: 32px;
+                height: 32px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin-left: 2px;
+                margin-right: 2px;
+                transition: background 0.2s;
             }
-            @keyframes spin {
-                0% {
-                    transform: rotate(0deg);
-                }
-                100% {
-                    transform: rotate(360deg);
-                }
+            .mint-btn:hover {
+                background: #e0e0fa;
             }
         </style>
     </head>
@@ -253,21 +308,119 @@
             /*********************
              * Group Checker Logic
              *********************/
-            // GroupInfoGetter contract ABI – note the returned tuple structure.
-            const groupGetterABI = [
-                "function getGroupsInfo(address[] calldata groupAddresses) external view returns (tuple(address owner, address service, address mintHandler, address redemptionHandler, uint256 minimalDeposit, address feeCollection, address staticERC20, address demurragedERC20, uint256 staticTotalSupply, uint256 demurragedTotalSupply)[] memory)",
+            // GroupInfoGetter contract address
+            const contractAddress = '0x3cd1c2be7ce9fc45b4c9a97ac9ef534fa85fc19d';
+            const abi = [
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address[]",
+                            "name": "groupAddresses",
+                            "type": "address[]"
+                        }
+                    ],
+                    "name": "getGroupsInfo",
+                    "outputs": [
+                        {
+                            "components": [
+                                {
+                                    "internalType": "address",
+                                    "name": "owner",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "service",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "feeCollection",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address[]",
+                                    "name": "membershipConditions",
+                                    "type": "address[]"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "baseMintHandler",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "baseMintPolicy",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "baseTreasury",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "hub",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "staticERC20",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "demurragedERC20",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "address",
+                                    "name": "nameRegistry",
+                                    "type": "address"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "maxConditions",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "erc1155TotalSupply",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "staticERC20TotalSupply",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "demurragedERC20TotalSupply",
+                                    "type": "uint256"
+                                },
+                                {
+                                    "internalType": "uint256",
+                                    "name": "balance",
+                                    "type": "uint256"
+                                }
+                            ],
+                            "internalType": "struct GroupInfoGetter.GroupInfo[]",
+                            "name": "",
+                            "type": "tuple[]"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                }
             ];
-            // Deployed GroupInfoGetter address
-            const groupGetterAddress =
-                "0xD4de76d83239ef8D2257C966850fE6Cf19f4b434";
 
             // Initialize ethers provider (Gnosis chain)
             const provider = new ethers.providers.JsonRpcProvider(
                 "https://rpc.aboutcircles.com",
             );
             const groupGetterContract = new ethers.Contract(
-                groupGetterAddress,
-                groupGetterABI,
+                contractAddress,
+                abi,
                 provider,
             );
 
@@ -303,100 +456,257 @@
 
                 try {
                     // Call the getter function on-chain
-                    const groups =
-                        await groupGetterContract.getGroupsInfo(addresses);
+                    const groups = await groupGetterContract.getGroupsInfo(addresses);
 
                     // Remove loader
                     resultDiv.innerHTML = "";
 
-                    // Build a table to display group info
-                    let html = `
-          <table>
-            <thead>
-              <tr>
-                <th>Group Address</th>
-                <th>Owner</th>
-                <th>Service</th>
-                <th>Mint Handler</th>
-                <th>Redemption Handler</th>
-                <th>Minimal Deposit</th>
-                <th>Fee Collection</th>
-                <th>Demurraged ERC20</th>
-                <th>Demurraged Total Supply</th>
-                <th>Static ERC20</th>
-                <th>Static Total Supply</th>
-              </tr>
-            </thead>
-            <tbody>
-        `;
+                    // Create the table
+                    const table = document.createElement("table");
+                    table.style.width = "100%";
+                    table.style.marginBottom = "20px";
 
-                    // Iterate over the results. The order corresponds to the input addresses.
+                    // Create table header
+                    const thead = document.createElement("thead");
+                    const headerRow = document.createElement("tr");
+                    const headers = [
+                        'Group Address', 'Owner', 'Fee Collection',
+                        'Static ERC20', 'Static ERC20 Price', 'Static ERC20 Supply',
+                        'Demurraged ERC20', 'Demurraged ERC20 Price', 'Demurraged ERC20 Supply',
+                        'ERC1155 Total Supply', 'Balance',
+                        'Membership Conditions', 'Service', 'Base Mint Policy', 'Base Treasury'
+                    ];
+
+                    headers.forEach(headerText => {
+                        const th = document.createElement("th");
+                        th.textContent = headerText;
+                        headerRow.appendChild(th);
+                    });
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
+
+                    // Create table body
+                    const tbody = document.createElement("tbody");
+
+                    // Add each group as a row
                     for (let i = 0; i < addresses.length; i++) {
                         const groupAddress = addresses[i];
                         const info = groups[i];
-                        html += `
-            <tr>
-              <td>
-                <span class="address-link" data-address="${groupAddress}">${groupAddress}</span>
-                <br>
-                <small class="profile-name" data-address="${groupAddress}">Loading name...</small>
-              </td>
-              <td>
-                <span class="address-link" data-address="${info.owner}">${info.owner}</span>
-                <br>
-                <small class="profile-name" data-address="${info.owner}">Loading name...</small>
-              </td>
-              <td>
-                <span class="address-link" data-address="${info.service}">${info.service}</span>
-              </td>
-              <td>
-                <span class="address-link" data-address="${info.mintHandler}">${info.mintHandler}</span>
-                <br>
-                <small class="profile-name" data-address="${info.mintHandler}">Loading name...</small>
-              </td>
-              <td>
-                <span class="address-link" data-address="${info.redemptionHandler}">${info.redemptionHandler}</span>
-                <br>
-                <small class="profile-name" data-address="${info.redemptionHandler}">Loading name...</small>
-              </td>
-              <td>${info.minimalDeposit}</td>
-              <td>
-                <span class="address-link" data-address="${info.feeCollection}">${info.feeCollection}</span>
-              </td>
-              <td>
-                <span class="address-link" data-address="${info.staticERC20}">${info.staticERC20}</span>
-                <br>
-                <small class="profile-name" data-address="${info.staticERC20}">Loading name...</small>
-              </td>
-              <td>${ethers.utils.formatUnits(info.staticTotalSupply, 18)}</td>
-              <td>
-                <span class="address-link" data-address="${info.demurragedERC20}">${info.demurragedERC20}</span>
-                <br>
-                <small class="profile-name" data-address="${info.demurragedERC20}">Loading name...</small>
-              </td>
-              <td>${ethers.utils.formatUnits(info.demurragedTotalSupply, 18)}</td>
-            </tr>
-          `;
-                    }
-                    html += `</tbody></table>`;
-                    resultDiv.innerHTML = html;
+                        const row = document.createElement("tr");
 
-                    // Update each "profile-name" cell with the actual name fetched from the API
-                    const nameCells =
-                        document.querySelectorAll(".profile-name");
-                    for (const cell of nameCells) {
-                        const addr = cell.getAttribute("data-address");
-                        // Skip the zero address
-                        if (
-                            addr ===
-                            "0x0000000000000000000000000000000000000000"
-                        ) {
-                            cell.textContent = "None";
-                        } else {
-                            const profileName = await getProfileName(addr);
-                            cell.textContent = profileName;
+                        // Helper function to truncate address
+                        function truncateAddress(address) {
+                            if (!address) return '';
+                            return address.slice(0, 6) + '...' + address.slice(-4);
                         }
+
+                        // Helper function to create address cell
+                        const createAddressCell = (address, isGroupAddress = false, isService = false, isBaseMintHandler = false, noSafe = false, isERC20 = false) => {
+                            const cell = document.createElement("td");
+                            
+                            // Container for address and actions
+                            const container = document.createElement("div");
+                            container.className = "address-container";
+                            
+                            // Main row: profile name (bold), address (truncated), actions
+                            const mainRow = document.createElement("div");
+                            mainRow.className = "address-main";
+                            
+                            // Etherscan link (truncated address)
+                            const etherscanLink = document.createElement("a");
+                            etherscanLink.href = `https://gnosisscan.io/address/${address}`;
+                            etherscanLink.target = "_blank";
+                            etherscanLink.rel = "noopener noreferrer";
+                            etherscanLink.textContent = truncateAddress(address);
+                            etherscanLink.className = "address-link";
+                            etherscanLink.title = address;
+                            // Prevent Etherscan link from triggering any reload or group clearing
+                            etherscanLink.onclick = (e) => { e.stopPropagation(); };
+                            mainRow.appendChild(etherscanLink);
+                            
+                            // Cowswap link for ERC20 tokens
+                            if (isERC20) {
+                                const cowBtn = document.createElement("button");
+                                cowBtn.className = "icon-btn";
+                                cowBtn.title = "Swap on CowSwap";
+                                cowBtn.innerHTML = `<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='2 2 20 20'><path fill='#004293' fill-rule='evenodd' d='M9.827 18a2.005 2.005 0 0 1-1.912-1.395l-1.36-4.272H5.72a2.01 2.01 0 0 1-1.912-1.396L3 8.4h3.029L4.431 6H19.57l-1.6 2.4H21l-.808 2.538a2.005 2.005 0 0 1-1.912 1.395h-.835l-1.36 4.272A2.005 2.005 0 0 1 14.173 18zM8.8 11.166c0 .645.482 1.168 1.078 1.168c.595 0 1.078-.523 1.078-1.168c0-.643-.483-1.166-1.078-1.166S8.8 10.523 8.8 11.166m6.4 0c0 .645-.482 1.168-1.078 1.168c-.595 0-1.078-.523-1.078-1.168c0-.643.483-1.166 1.078-1.166s1.078.523 1.078 1.166' clip-rule='evenodd'/></svg>`;
+                                cowBtn.onclick = (e) => {
+                                    e.preventDefault();
+                                    window.open(`https://swap.cow.fi/#/100/swap/WXDAI/${address}`, '_blank');
+                                };
+                                mainRow.appendChild(cowBtn);
+                            }
+                            // Profile button for group address
+                            if (isGroupAddress) {
+                                const profileBtn = document.createElement("button");
+                                profileBtn.className = "icon-btn";
+                                profileBtn.title = "Open Profile";
+                                profileBtn.innerHTML = `<svg width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="6.5" r="3.5" stroke="#5c49e4" stroke-width="1.5"/><path d="M2.5 15c0-2.485 2.91-4.5 6.5-4.5s6.5 2.015 6.5 4.5" stroke="#5c49e4" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+                                profileBtn.onclick = (e) => {
+                                    e.preventDefault();
+                                    window.open(`profileChecker.html?address=${address}`, '_blank');
+                                };
+                                mainRow.appendChild(profileBtn);
+                            }
+                            // Mint button for base mint handler
+                            if (isBaseMintHandler) {
+                                const mintBtn = document.createElement("button");
+                                mintBtn.className = "mint-btn icon-btn";
+                                mintBtn.title = "Mint via Metri";
+                                mintBtn.innerHTML = `<svg width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="7.5" stroke="#5c49e4" stroke-width="1.5"/><path d="M9 5v8M5 9h8" stroke="#5c49e4" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+                                mintBtn.onclick = (e) => {
+                                    e.preventDefault();
+                                    window.open(`https://app.metri.xyz/transfer/${address}/crc`, '_blank');
+                                };
+                                mainRow.appendChild(mintBtn);
+                            }
+                            // Safe button for other addresses (not group, not service, not base mint handler, not noSafe)
+                            if (!isGroupAddress && !isService && !isBaseMintHandler && !noSafe) {
+                                const safeBtn = document.createElement("button");
+                                safeBtn.className = "icon-btn";
+                                safeBtn.title = "Open in Safe";
+                                safeBtn.innerHTML = `<svg width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="12" height="8" rx="2" stroke="#5c49e4" stroke-width="1.5"/><circle cx="9" cy="9" r="1.5" stroke="#5c49e4" stroke-width="1.5"/></svg>`;
+                                safeBtn.onclick = (e) => {
+                                    e.preventDefault();
+                                    window.open(`https://app.safe.global/home?safe=gno:${address}`, '_blank');
+                                };
+                                mainRow.appendChild(safeBtn);
+                            }
+                            // Copy button (icon) always on the right
+                            const copyBtn = document.createElement("button");
+                            copyBtn.className = "icon-btn";
+                            copyBtn.title = "Copy Address";
+                            copyBtn.innerHTML = `<svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="10" height="10" rx="2" stroke="#5c49e4" stroke-width="1.5"/><rect x="6" y="6" width="7" height="7" rx="1.5" stroke="#5c49e4" stroke-width="1.5"/></svg>`;
+                            copyBtn.style.marginLeft = 'auto';
+                            copyBtn.onclick = () => {
+                                navigator.clipboard.writeText(address);
+                                copyBtn.innerHTML = `<svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="10" height="10" rx="2" stroke="#5c49e4" stroke-width="1.5"/><path d="M6 9l2 2 4-4" stroke="#5c49e4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+                                setTimeout(() => {
+                                    copyBtn.innerHTML = `<svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="10" height="10" rx="2" stroke="#5c49e4" stroke-width="1.5"/><rect x="6" y="6" width="7" height="7" rx="1.5" stroke="#5c49e4" stroke-width="1.5"/></svg>`;
+                                }, 1500);
+                            };
+                            mainRow.appendChild(copyBtn);
+                            container.appendChild(mainRow);
+                            // Profile name (bold)
+                            const nameSpan = document.createElement("span");
+                            nameSpan.className = "profile-name";
+                            nameSpan.setAttribute("data-address", address);
+                            nameSpan.textContent = "Loading name...";
+                            container.appendChild(nameSpan);
+                            if (address !== "0x0000000000000000000000000000000000000000") {
+                                getProfileName(address).then(name => {
+                                    nameSpan.textContent = name;
+                                });
+                            } else {
+                                nameSpan.textContent = "None";
+                            }
+                            cell.appendChild(container);
+                            return cell;
+                        };
+
+                        // Add cells to row
+                        row.appendChild(createAddressCell(groupAddress, true));
+                        row.appendChild(createAddressCell(info.owner));
+                        row.appendChild(createAddressCell(info.feeCollection));
+                        // Static ERC20 (actually demurraged)
+                        row.appendChild(createAddressCell(info.demurragedERC20, false, false, false, true, true));
+                        // Static ERC20 Price
+                        const staticPriceCell = document.createElement('td');
+                        staticPriceCell.textContent = 'Loading...';
+                        row.appendChild(staticPriceCell);
+                        getPrice(info.demurragedERC20).then(price => {
+                            staticPriceCell.textContent = price;
+                        });
+                        // Add Balancer pools for Static ERC20
+                        getPoolsForToken(info.demurragedERC20).then(pools => {
+                            if (pools.length > 0) {
+                                const poolDiv = document.createElement('div');
+                                poolDiv.style.display = 'flex';
+                                poolDiv.style.gap = '4px';
+                                pools.forEach(pool => {
+                                    const balancerBtn = document.createElement('button');
+                                    balancerBtn.className = 'icon-btn';
+                                    balancerBtn.title = 'View on Balancer';
+                                    balancerBtn.innerHTML = `<svg width='22' height='22' viewBox='0 0 512 512' fill='none' xmlns='http://www.w3.org/2000/svg'><rect x='2' y='2' width='508' height='508' rx='254' fill='#004293'/><path d='M375.644 126.065C375.644 148.144 322.077 166.043 255.999 166.043C189.921 166.043 136.355 148.144 136.355 126.065C136.355 103.985 189.921 86.0862 255.999 86.0862C322.077 86.0862 375.644 103.985 375.644 126.065Z' fill='white'/><path d='M455.407 343.283C455.407 316.07 406.59 292.669 336.623 282.322L334.811 282.69C311.212 287.346 284.413 289.978 256 289.978C226.856 289.978 199.409 287.208 175.376 282.322C105.409 292.669 56.5918 316.07 56.5918 343.283C56.5918 380.082 145.869 409.914 256 409.914C366.13 409.914 455.407 380.082 455.407 343.283Z' fill='white'/><path d='M415.526 223.347C415.526 199.799 369.838 179.82 306.468 172.762L304.833 173.026C289.752 175.398 273.267 176.704 256 176.704C238.105 176.704 221.053 175.302 205.531 172.764C142.161 179.819 96.4734 199.801 96.4734 223.347C96.4734 252.786 167.895 276.652 256 276.652C344.104 276.652 415.526 252.786 415.526 223.347Z' fill='white'/><rect x='2' y='2' width='508' height='508' rx='254' stroke='#E5E7EB' stroke-width='4'/></svg>`;
+                                    balancerBtn.onclick = (e) => {
+                                        e.preventDefault();
+                                        window.open(`https://balancer.fi/pools/gnosis/v2/${pool.id}`, '_blank');
+                                    };
+                                    poolDiv.appendChild(balancerBtn);
+                                });
+                                staticPriceCell.appendChild(poolDiv);
+                            }
+                        });
+                        // Static ERC20 Supply
+                        row.appendChild(document.createElement('td')).textContent = ethers.utils.formatEther(info.demurragedERC20TotalSupply || 0);
+                        // Demurraged ERC20 (actually static)
+                        row.appendChild(createAddressCell(info.staticERC20, false, false, false, true, true));
+                        // Demurraged ERC20 Price
+                        const demurragedPriceCell = document.createElement('td');
+                        demurragedPriceCell.textContent = 'Loading...';
+                        row.appendChild(demurragedPriceCell);
+                        getPrice(info.staticERC20).then(price => {
+                            demurragedPriceCell.textContent = price;
+                        });
+                        // Add Balancer pools for Demurraged ERC20
+                        getPoolsForToken(info.staticERC20).then(pools => {
+                            if (pools.length > 0) {
+                                const poolDiv = document.createElement('div');
+                                poolDiv.style.display = 'flex';
+                                poolDiv.style.gap = '4px';
+                                pools.forEach(pool => {
+                                    const balancerBtn = document.createElement('button');
+                                    balancerBtn.className = 'icon-btn';
+                                    balancerBtn.title = 'View on Balancer';
+                                    balancerBtn.innerHTML = `<svg width='22' height='22' viewBox='0 0 512 512' fill='none' xmlns='http://www.w3.org/2000/svg'><rect x='2' y='2' width='508' height='508' rx='254' fill='#004293'/><path d='M375.644 126.065C375.644 148.144 322.077 166.043 255.999 166.043C189.921 166.043 136.355 148.144 136.355 126.065C136.355 103.985 189.921 86.0862 255.999 86.0862C322.077 86.0862 375.644 103.985 375.644 126.065Z' fill='white'/><path d='M455.407 343.283C455.407 316.07 406.59 292.669 336.623 282.322L334.811 282.69C311.212 287.346 284.413 289.978 256 289.978C226.856 289.978 199.409 287.208 175.376 282.322C105.409 292.669 56.5918 316.07 56.5918 343.283C56.5918 380.082 145.869 409.914 256 409.914C366.13 409.914 455.407 380.082 455.407 343.283Z' fill='white'/><path d='M415.526 223.347C415.526 199.799 369.838 179.82 306.468 172.762L304.833 173.026C289.752 175.398 273.267 176.704 256 176.704C238.105 176.704 221.053 175.302 205.531 172.764C142.161 179.819 96.4734 199.801 96.4734 223.347C96.4734 252.786 167.895 276.652 256 276.652C344.104 276.652 415.526 252.786 415.526 223.347Z' fill='white'/><rect x='2' y='2' width='508' height='508' rx='254' stroke='#E5E7EB' stroke-width='4'/></svg>`;
+                                    balancerBtn.onclick = (e) => {
+                                        e.preventDefault();
+                                        window.open(`https://balancer.fi/pools/gnosis/v2/${pool.id}`, '_blank');
+                                    };
+                                    poolDiv.appendChild(balancerBtn);
+                                });
+                                demurragedPriceCell.appendChild(poolDiv);
+                            }
+                        });
+                        // Demurraged ERC20 Supply
+                        row.appendChild(document.createElement('td')).textContent = ethers.utils.formatEther(info.staticERC20TotalSupply || 0);
+                        // ERC1155 Total Supply
+                        row.appendChild(document.createElement('td')).textContent = ethers.utils.formatEther(info.erc1155TotalSupply || 0);
+                        // Balance
+                        row.appendChild(document.createElement('td')).textContent = ethers.utils.formatEther(info.balance || 0);
+                        // Membership conditions
+                        const conditionsCell = document.createElement('td');
+                        if (info.membershipConditions.length > 0) {
+                            const conditionsList = document.createElement('ul');
+                            info.membershipConditions.forEach(condition => {
+                                const li = document.createElement('li');
+                                const link = document.createElement('a');
+                                link.href = '#';
+                                link.textContent = condition;
+                                link.onclick = async (e) => {
+                                    e.preventDefault();
+                                    const profileName = await getProfileName(condition);
+                                    link.textContent = profileName || condition;
+                                };
+                                li.appendChild(link);
+                                conditionsList.appendChild(li);
+                            });
+                            conditionsCell.appendChild(conditionsList);
+                        } else {
+                            conditionsCell.textContent = 'None';
+                        }
+                        row.appendChild(conditionsCell);
+                        // Service, Base Mint Policy, Base Treasury (rightmost)
+                        row.appendChild(createAddressCell(info.service, false, true));
+                        row.appendChild(createAddressCell(info.baseMintPolicy, false, false, false, true));
+                        row.appendChild(createAddressCell(info.baseTreasury, false, false, false, true));
+
+                        tbody.appendChild(row);
                     }
+
+                    table.appendChild(tbody);
+                    resultDiv.appendChild(table);
+
                 } catch (error) {
                     console.error(error);
                     resultDiv.innerHTML = `<p style='color:red;'>Error: ${error.message}</p>`;
@@ -432,6 +742,184 @@
 
             // Call initializePage when the document is ready
             document.addEventListener("DOMContentLoaded", initializePage);
+
+            function displayGroupInfo(groups) {
+                const resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = '';
+
+                const table = document.createElement('table');
+                table.className = 'group-table';
+
+                // Create table headers
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                const headers = [
+                    'Group Address', 'Owner', 'Service', 'Fee Collection',
+                    'Base Mint Handler', 'Base Mint Policy', 'Base Treasury',
+                    'Static ERC20', 'Static ERC20 Price', 'Static ERC20 Supply',
+                    'ERC1155 Total Supply', 'Balance',
+                    'Membership Conditions'
+                ];
+
+                headers.forEach(headerText => {
+                    const th = document.createElement('th');
+                    th.textContent = headerText;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                // Create table body
+                const tbody = document.createElement('tbody');
+                groups.forEach(group => {
+                    const row = document.createElement('tr');
+
+                    // Helper function to add a cell with address handling
+                    const addRow = (value, isAddress = false) => {
+                        const cell = document.createElement('td');
+                        if (isAddress && value !== '0x0000000000000000000000000000000000000000') {
+                            const link = document.createElement('a');
+                            link.href = '#';
+                            link.textContent = value;
+                            link.onclick = async (e) => {
+                                e.preventDefault();
+                                const profileName = await getProfileName(value);
+                                link.textContent = profileName || value;
+                            };
+                            cell.appendChild(link);
+                        } else {
+                            cell.textContent = value;
+                        }
+                        row.appendChild(cell);
+                    };
+
+                    // Add all fields
+                    addRow(group.groupAddress, true);
+                    addRow(group.owner, true);
+                    addRow(group.service, true);
+                    addRow(group.feeCollection, true);
+                    addRow(group.baseMintHandler, true);
+                    addRow(group.baseMintPolicy, true);
+                    addRow(group.baseTreasury, true);
+                    addRow(group.staticERC20, true);
+                    addRow(ethers.utils.formatEther(group.erc1155TotalSupply || 0));
+                    addRow(ethers.utils.formatEther(group.staticERC20TotalSupply || 0));
+                    addRow(ethers.utils.formatEther(group.balance || 0));
+
+                    // Add membership conditions
+                    const conditionsCell = document.createElement('td');
+                    if (group.membershipConditions && group.membershipConditions.length > 0) {
+                        const conditionsList = document.createElement('ul');
+                        group.membershipConditions.forEach(condition => {
+                            const li = document.createElement('li');
+                            const link = document.createElement('a');
+                            link.href = '#';
+                            link.textContent = condition;
+                            link.onclick = async (e) => {
+                                e.preventDefault();
+                                const profileName = await getProfileName(condition);
+                                link.textContent = profileName || condition;
+                            };
+                            li.appendChild(link);
+                            conditionsList.appendChild(li);
+                        });
+                        conditionsCell.appendChild(conditionsList);
+                    } else {
+                        conditionsCell.textContent = 'None';
+                    }
+                    row.appendChild(conditionsCell);
+
+                    tbody.appendChild(row);
+                });
+                table.appendChild(tbody);
+                resultDiv.appendChild(table);
+            }
+
+            // Add retry logic for fetch with 429 handling
+            async function fetchWithRetry(url, options, maxRetries = 3, delayMs = 2000) {
+                for (let attempt = 0; attempt < maxRetries; attempt++) {
+                    const response = await fetch(url, options);
+                    if (response.status !== 429) {
+                        return response;
+                    }
+                    // If 429, wait and retry
+                    await new Promise(res => setTimeout(res, delayMs));
+                }
+                // Final attempt
+                return await fetch(url, options);
+            }
+
+            async function getPrice(erc20Address) {
+                if (!erc20Address || erc20Address === ethers.constants.AddressZero) {
+                    return "N/A";
+                }
+                try {
+                    const query = `
+                      {
+                        sorGetSwapPaths(
+                          chain: GNOSIS,
+                          swapAmount: "0.1",
+                          swapType: EXACT_IN,
+                          tokenIn: "${erc20Address}",
+                          tokenOut: "0xaf204776c7245bf4147c2612bf6e5972ee483701"
+                        ) {
+                          returnAmount
+                          effectivePrice
+                          protocolVersion
+                          effectivePriceReversed
+                          priceImpact {
+                            priceImpact
+                            error
+                          }
+                        }
+                      }
+                    `;
+                    const response = await fetchWithRetry("https://api-v3.balancer.fi/graphql", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ query })
+                    });
+                    const data = await response.json();
+                    if (
+                        data.data &&
+                        data.data.sorGetSwapPaths &&
+                        data.data.sorGetSwapPaths.returnAmount
+                    ) {
+                        return data.data.sorGetSwapPaths.returnAmount * 10;
+                    }
+                    return "N/A";
+                } catch (err) {
+                    console.error("Error fetching price for", erc20Address, err);
+                    return "N/A";
+                }
+            }
+
+            async function getPoolsForToken(tokenAddress) {
+                try {
+                    const query = `
+                      {
+                        poolGetPools(where: {tokensIn: [\"${tokenAddress}\"]}) {
+                          id
+                          address
+                          name
+                        }
+                      }
+                    `;
+                    const response = await fetchWithRetry("https://api-v3.balancer.fi/graphql", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ query })
+                    });
+                    const data = await response.json();
+                    if (data.data && data.data.poolGetPools) {
+                        return data.data.poolGetPools;
+                    }
+                    return [];
+                } catch (err) {
+                    console.error("Error fetching pools for token", tokenAddress, err);
+                    return [];
+                }
+            }
         </script>
     </body>
 </html>
