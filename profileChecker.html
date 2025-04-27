@@ -33,9 +33,9 @@
                 font-weight: 400;
             }
             .container {
-                max-width: 900px; /* Adjusted width */
-                margin: 40px auto 40px auto; /* Centered */
-                padding: 0 20px;
+                max-width: 900px;
+                margin: 40px 0 40px 0; /* Remove auto centering */
+                padding: 0 0 0 0; /* Remove left/right padding */
             }
             label {
                 display: block;
@@ -129,14 +129,15 @@
             table {
                 border-collapse: separate;
                 border-spacing: 0 8px;
-                margin-top: 20px; /* Increased margin */
+                margin-top: 20px;
                 width: 100%;
                 font-size: 0.97rem;
                 background: #fff;
                 border-radius: 8px;
-                overflow: hidden; /* Keep for table rounding */
+                overflow: hidden;
                 border: 1px solid #eee;
                 box-shadow: 0 2px 12px 0 rgba(92,73,228,0.07);
+                margin-left: 0;
             }
             th,
             td {
@@ -428,7 +429,8 @@
                         table.appendChild(thead);
 
                         const tbody = document.createElement("tbody");
-                        for (const addrData of trustedAddressesData) {
+                        for (let i = 0; i < trustedAddressesData.length; i++) {
+                            const addrData = trustedAddressesData[i];
                             const row = document.createElement("tr");
                             const trustedAddr = addrData.trustedAddress;
                             const trustedErc20 = erc20Map[trustedAddr.toLowerCase()]?.demurragedERC20;
@@ -487,8 +489,14 @@
                             row.appendChild(priceCell);
                             getPrice(trustedErc20).then(price => { priceCell.textContent = price; });
 
-                            // Expiry
-                            row.appendChild(document.createElement("td")).textContent = formatExpiry(addrData.expiry);
+                            // Expiry (use expiry from next row, or N/A for last row)
+                            let expiryValue;
+                            if (i < trustedAddressesData.length - 1) {
+                                expiryValue = trustedAddressesData[i + 1].expiry;
+                            } else {
+                                expiryValue = 0; // Last row gets N/A
+                            }
+                            row.appendChild(document.createElement("td")).textContent = expiryValue === 0 ? 'N/A' : formatExpiry(expiryValue);
                             // V1 State
                             row.appendChild(document.createElement("td")).textContent = addrData.v1Human ? 'human' : (addrData.v1Org ? 'org' : 'none');
                             // V2 State
