@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Circles Trust Path Visualizer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', Helvetica, Arial, sans-serif;
+      background: #fafafa;
+      color: #333;
+      line-height: 1.3;
+    }
+    header {
+      background: #5C49E4;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin: 0;
+      font-weight: 600;
+      font-size: 1.5rem;
+    }
+    p {
+      margin: 0.5rem 0 0;
+      font-weight: 400;
+    }
+    .container {
+      max-width: none;
+      margin: 40px 20px;
+      padding: 0;
+    }
+    .input-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+    .summary-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      display: none;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 10px;
+    }
+    .summary-item {
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 6px;
+    }
+    .summary-item h3 {
+      margin: 0 0 5px 0;
+      font-size: 0.9rem;
+      color: #666;
+    }
+    .summary-item p {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .input-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    input {
+      padding: 10px;
+      width: 100%;
+      max-width: 400px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background: #5C49E4;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    button:hover {
+      background: #4A39CC;
+    }
+    #visualization {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      height: 800px;
+      width: calc(100% - 40px);
+      position: relative;
+    }
+    .node {
+      cursor: move;
+    }
+    .node rect {
+      fill: #5C49E4;
+      transition: fill 0.2s;
+      opacity: 0.9;
+    }
+    .node:hover rect {
+      fill: #4A39CC;
+    }
+    .node text {
+      font-size: 12px;
+      font-weight: 500;
+      fill: #333;
+    }
+    .link {
+      fill: none;
+      stroke: #5C49E4;
+      stroke-opacity: 0.2;
+      transition: all 0.2s;
+    }
+    .link:hover {
+      stroke-opacity: 0.5 !important;
+    }
+    .tooltip {
+      position: fixed;
+      background: rgba(40, 44, 52, 0.95);
+      color: white;
+      border-radius: 6px;
+      padding: 12px;
+      max-width: 300px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      pointer-events: none;
+      z-index: 1000;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .tooltip div {
+      margin: 4px 0;
+    }
+    .help-text {
+      color: #666;
+      font-size: 0.9rem;
+      margin-top: 5px;
+    }
+    .link-overlay {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Circles Trust Path Visualizer</h1>
+    <p>Visualize trust paths between Circles addresses using Sankey diagrams.</p>
+  </header>
+
+  <div class="container">
+    <div class="input-section">
+      <div class="input-group">
+        <label for="sourceInput">Source Address:</label>
+        <input type="text" id="sourceInput" value="0x42cedde51198d1773590311e2a340dc06b24cb37" />
+        <div class="help-text">The address sending the CIRCLES</div>
+      </div>
+      <div class="input-group">
+        <label for="targetInput">Target Address:</label>
+        <input type="text" id="targetInput" value="0x557DAf8F74c6B457191D916d67d340E43b6226Cd" />
+        <div class="help-text">The address receiving the CIRCLES</div>
+      </div>
+      <div class="input-group">
+        <label for="flowInput">Flow Amount (in CIRCLES):</label>
+        <input type="number" id="flowInput" value="10000" min="0.000000000000000001" step="0.000000000000000001" />
+        <div class="help-text">The amount of CIRCLES to transfer</div>
+      </div>
+      <button id="visualizeButton">Visualize Path</button>
+    </div>
+
+    <div class="summary-section" id="summarySection">
+      <h2>Path Summary</h2>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <h3>Total Flow</h3>
+          <p id="totalFlow">-</p>
+        </div>
+        <div class="summary-item">
+          <h3>Number of Hops</h3>
+          <p id="numberOfHops">-</p>
+        </div>
+        <div class="summary-item">
+          <h3>Unique Intermediaries</h3>
+          <p id="uniqueIntermediaries">-</p>
+        </div>
+        <div class="summary-item">
+          <h3>Unique Token Types</h3>
+          <p id="uniqueTokens">-</p>
+        </div>
+        <div class="summary-item">
+          <h3>Receiver's Total Capacity</h3>
+          <p id="receiverCapacity">Calculating...</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="visualization"></div>
+  </div>
+
+  <script>
+    // Elements
+    const sourceInput = document.getElementById("sourceInput");
+    const targetInput = document.getElementById("targetInput");
+    const flowInput = document.getElementById("flowInput");
+    const visualizeButton = document.getElementById("visualizeButton");
+    const visualization = document.getElementById("visualization");
+
+    // Create tooltip
+    const tooltip = d3.select("body")
+      .append("div")
+      .attr("class", "tooltip")
+      .style("opacity", 0);
+
+    // Function to fetch profile names
+    async function getProfileNames(addresses) {
+      try {
+        const queryAddresses = addresses.map(addr => addr.toLowerCase());
+        const uniqueAddresses = [...new Set(queryAddresses)];
+        const nameMap = {};
+        
+        const requests = uniqueAddresses.map(async (address) => {
+          console.log("Fetching profile for:", address);
+
+          const response = await fetch(`https://rpc.aboutcircles.com/profiles/search?address=${address}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json"
+            }
+          });
+
+          if (!response.ok) {
+            console.error("HTTP error for profile:", address);
+            nameMap[address] = "No name";
+            return;
+          }
+
+          const data = await response.json();
+          console.log("Profile response for", address, ":", data);
+
+          if (!Array.isArray(data)) {
+            console.error("Invalid profile response format:", data);
+            nameMap[address] = "No name";
+            return;
+          }
+
+          // Find the matching profile
+          const profile = data.find(entry => 
+            entry.address.toLowerCase() === address
+          );
+
+          nameMap[address] = profile?.name || "No name";
+        });
+        
+        await Promise.all(requests);
+        return nameMap;
+      } catch (error) {
+        console.error("Error fetching profiles:", error);
+        return addresses.reduce((acc, addr) => {
+          acc[addr.toLowerCase()] = "No name";
+          return acc;
+        }, {});
+      }
+    }
+
+    // Function to find trust paths
+    async function findTrustPaths(source, target, flow) {
+      try {
+        // Convert flow to wei (multiply by 10^18)
+        const flowInWei = (BigInt(Math.floor(flow * 1e6)) * BigInt(1e12)).toString();
+        
+        const requestData = {
+          jsonrpc: "2.0",
+          id: 0,
+          method: "circlesV2_findPath",
+          params: [{
+            Source: source.toLowerCase(),
+            FromTokens: [],
+            Sink: target.toLowerCase(),
+            TargetFlow: flowInWei,
+            WithWrap: true
+          }]
+        };
+
+        console.log("Sending request:", JSON.stringify(requestData, null, 2));
+
+        const response = await fetch("https://rpc.aboutcircles.com", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("HTTP error response:", errorText);
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("Received response:", JSON.stringify(data, null, 2));
+
+        if (data.error) {
+          console.error("RPC error:", data.error);
+          if (data.error.message.includes("internal error")) {
+            // Try to extract more specific error information
+            const errorData = data.error.data;
+            if (errorData && errorData.includes("500")) {
+              throw new Error("No valid path found or requested amount is too large. Try reducing the amount or checking if a trust path exists between these addresses.");
+            }
+            throw new Error("The requested flow amount is too large or not possible. Please try a smaller amount.");
+          }
+          throw new Error(data.error.message || "Error from server");
+        }
+
+        if (!data.result) {
+          console.error("No result in response:", data);
+          throw new Error("No result in response");
+        }
+
+        if (!data.result.transfers || !Array.isArray(data.result.transfers)) {
+          console.error("Invalid transfers data:", data.result);
+          throw new Error("Invalid transfers data in response");
+        }
+
+        // Convert the transfers into paths
+        const paths = [];
+        const nodes = new Set();
+        const edges = new Map();
+
+        // First pass: collect all nodes and edges
+        data.result.transfers.forEach(transfer => {
+          const from = transfer.from.toLowerCase();
+          const to = transfer.to.toLowerCase();
+          nodes.add(from);
+          nodes.add(to);
+          
+          if (!edges.has(from)) {
+            edges.set(from, new Set());
+          }
+          edges.get(from).add(to);
+        });
+
+        // Second pass: build paths
+        function buildPaths(current, target, visited, path) {
+          if (current === target) {
+            paths.push([...path]);
+            return;
+          }
+
+          const nextNodes = edges.get(current) || new Set();
+          for (const next of nextNodes) {
+            if (!visited.has(next)) {
+              visited.add(next);
+              path.push(next);
+              buildPaths(next, target, visited, path);
+              path.pop();
+              visited.delete(next);
+            }
+          }
+        }
+
+        // Start building paths from source
+        const visited = new Set([source.toLowerCase()]);
+        buildPaths(source.toLowerCase(), target.toLowerCase(), visited, [source.toLowerCase()]);
+
+        return {
+          paths: paths,
+          transfers: data.result.transfers
+        };
+      } catch (error) {
+        console.error("Error finding trust paths:", error);
+        throw error;
+      }
+    }
+
+    // Function to get trusted tokens and their supply
+    async function getReceiverCapacity(address) {
+      try {
+        // Get trust relations using circles_query
+        const trustRequest = {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "circles_query",
+          params: [{
+            Namespace: "V_CrcV2",
+            Table: "TrustRelations",
+            Columns: [],
+            Filter: [{
+              Type: "FilterPredicate",
+              FilterType: "Equals",
+              Column: "trustee",
+              Value: address.toLowerCase()
+            }],
+            Order: [
+              {
+                Column: "blockNumber",
+                SortOrder: "DESC"
+              }
+            ]
+          }]
+        };
+
+        const trustResponse = await fetch("https://rpc.aboutcircles.com", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(trustRequest)
+        });
+
+        if (!trustResponse.ok) {
+          throw new Error(`HTTP error! status: ${trustResponse.status}`);
+        }
+
+        const trustData = await trustResponse.json();
+        if (!trustData.result || !trustData.result.Rows) {
+          throw new Error("Invalid trust data response");
+        }
+
+        // Get token supply for each trusted token (trusters)
+        const supplyRequests = trustData.result.Rows.map(row => ({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "circlesv2_getTokenSupply",
+          params: [{
+            TokenOwner: row[6].toLowerCase() // truster address is at index 6
+          }]
+        }));
+
+        const supplyResponses = await Promise.all(supplyRequests.map(req => 
+          fetch("https://rpc.aboutcircles.com", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(req)
+          })
+        ));
+
+        const supplyData = await Promise.all(supplyResponses.map(r => r.json()));
+        
+        // Calculate total capacity
+        let totalCapacity = BigInt(0);
+        const tokenDetails = [];
+
+        for (let i = 0; i < supplyData.length; i++) {
+          const supply = supplyData[i].result;
+          const truster = trustData.result.Rows[i][6]; // truster address
+          if (supply) {
+            const supplyInCRC = BigInt(supply) / BigInt(1e18);
+            totalCapacity += supplyInCRC;
+            tokenDetails.push({
+              owner: truster,
+              supply: supplyInCRC.toString()
+            });
+          }
+        }
+
+        return {
+          totalCapacity: totalCapacity.toString(),
+          tokens: tokenDetails
+        };
+      } catch (error) {
+        console.error("Error getting receiver capacity:", error);
+        throw error;
+      }
+    }
+
+    // Function to create Sankey diagram
+    function createSankeyDiagram(paths, transfers, nameMap) {
+      // Update summary section
+      const summarySection = document.getElementById('summarySection');
+      summarySection.style.display = 'block';
+      
+      // Calculate summary statistics
+      const totalFlow = transfers.reduce((sum, t) => sum + parseFloat(t.value) / 1e18, 0);
+      const uniqueIntermediaries = new Set(transfers.map(t => t.to.toLowerCase())).size - 2; // Exclude source and target
+      const uniqueTokens = new Set(transfers.map(t => t.tokenOwner.toLowerCase())).size;
+      
+      document.getElementById('totalFlow').textContent = `${totalFlow.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})} CIRCLES`;
+      document.getElementById('numberOfHops').textContent = Math.max(...paths.map(p => p.length - 1));
+      document.getElementById('uniqueIntermediaries').textContent = uniqueIntermediaries;
+      document.getElementById('uniqueTokens').textContent = uniqueTokens;
+
+      // Get receiver's capacity
+      const target = paths[0][paths[0].length - 1];
+      getReceiverCapacity(target).then(capacity => {
+        document.getElementById('receiverCapacity').textContent = 
+          `${Number(capacity.totalCapacity).toLocaleString()} CIRCLES (from ${capacity.tokens.length} tokens)`;
+      }).catch(error => {
+        console.error("Error getting receiver capacity:", error);
+        document.getElementById('receiverCapacity').textContent = "Error calculating capacity";
+      });
+
+      // Clear previous visualization
+      visualization.innerHTML = '';
+
+      // Prepare data for Sankey diagram
+      const nodes = [];
+      const links = [];
+      const nodeFlows = new Map(); // Track flows for each node
+
+      // First create all nodes from paths
+      paths.forEach(path => {
+        path.forEach(node => {
+          const nodeName = nameMap[node.toLowerCase()] || node;
+          if (!nodes.find(n => n.name === nodeName)) {
+            nodes.push({
+              name: nodeName,
+              address: node,
+              x0: 0,
+              x1: 0,
+              y0: 0,
+              y1: 0
+            });
+          }
+        });
+      });
+
+      // Process transfers and calculate constraints
+      const nodeCapacities = new Map(); // Map to store total token capacity per node
+      const nodeOutflows = new Map();   // Map to store total outgoing flow per node
+      const nodeInflows = new Map();    // Map to store total incoming flow per node
+
+      transfers.forEach(transfer => {
+        const from = transfer.from.toLowerCase();
+        const to = transfer.to.toLowerCase();
+        const value = parseFloat(transfer.value) / 1e18;
+        const tokenOwner = transfer.tokenOwner.toLowerCase();
+
+        // Update node capacities (based on token ownership)
+        nodeCapacities.set(tokenOwner, (nodeCapacities.get(tokenOwner) || 0) + value);
+        
+        // Update flow tracking
+        nodeOutflows.set(from, (nodeOutflows.get(from) || 0) + value);
+        nodeInflows.set(to, (nodeInflows.get(to) || 0) + value);
+
+        // Update node flows for tooltips
+        nodeFlows.set(from, (nodeFlows.get(from) || 0) + value);
+        nodeFlows.set(to, (nodeFlows.get(to) || 0) + value);
+
+        // Find or create link
+        const sourceNode = nodes.find(n => n.address.toLowerCase() === from);
+        const targetNode = nodes.find(n => n.address.toLowerCase() === to);
+        
+        if (sourceNode && targetNode) {
+          const existingLink = links.find(l => 
+            l.source === nodes.indexOf(sourceNode) && 
+            l.target === nodes.indexOf(targetNode)
+          );
+
+          if (existingLink) {
+            existingLink.value += value;
+            existingLink.transfers.push({
+              value: value,
+              tokenOwner: nameMap[transfer.tokenOwner.toLowerCase()] || transfer.tokenOwner
+            });
+          } else {
+            links.push({
+              source: nodes.indexOf(sourceNode),
+              target: nodes.indexOf(targetNode),
+              value: value,
+              transfers: [{
+                value: value,
+                tokenOwner: nameMap[transfer.tokenOwner.toLowerCase()] || transfer.tokenOwner
+              }]
+            });
+          }
+        }
+      });
+
+      // Function to determine node constraint type
+      function getNodeConstraintType(node) {
+        const address = node.address.toLowerCase();
+        const capacity = nodeCapacities.get(address) || 0;
+        const outflow = nodeOutflows.get(address) || 0;
+        const inflow = nodeInflows.get(address) || 0;
+        
+        // If this node's capacity limits flows
+        if (capacity > 0 && capacity <= Math.max(outflow, inflow)) {
+          return 'capacity';
+        }
+        // If this node's outgoing flows are close to maximum
+        if (outflow > 0 && outflow >= Math.max(capacity, inflow) * 0.9) {
+          return 'outflow';
+        }
+        // If this node's incoming flows are close to maximum
+        if (inflow > 0 && inflow >= Math.max(capacity, outflow) * 0.9) {
+          return 'inflow';
+        }
+        return 'none';
+      }
+
+      // Function to get node color based on constraint type
+      function getNodeColor(node) {
+        const constraintType = getNodeConstraintType(node);
+        switch (constraintType) {
+          case 'capacity': return '#e74c3c';  // Red for capacity constraints
+          case 'outflow': return '#f39c12';   // Orange for outflow constraints
+          case 'inflow': return '#3498db';    // Blue for inflow constraints
+          default: return '#5C49E4';          // Default purple
+        }
+      }
+
+      // Enhanced tooltip content with constraint information
+      function formatTooltip(d, isNode = false) {
+        if (isNode) {
+          const flow = nodeFlows.get(d.address.toLowerCase()) || 0;
+          const capacity = nodeCapacities.get(d.address.toLowerCase()) || 0;
+          const outflow = nodeOutflows.get(d.address.toLowerCase()) || 0;
+          const inflow = nodeInflows.get(d.address.toLowerCase()) || 0;
+          const constraintType = getNodeConstraintType(d);
+          
+          let constraintInfo = '';
+          switch (constraintType) {
+            case 'capacity':
+              constraintInfo = `<div style="color: #e74c3c;">⚠️ Token capacity limit: ${capacity.toLocaleString()} CIRCLES</div>`;
+              break;
+            case 'outflow':
+              constraintInfo = `<div style="color: #f39c12;">⚠️ Outflow constraint: ${outflow.toLocaleString()} CIRCLES</div>`;
+              break;
+            case 'inflow':
+              constraintInfo = `<div style="color: #3498db;">⚠️ Inflow constraint: ${inflow.toLocaleString()} CIRCLES</div>`;
+              break;
+          }
+
+          return `
+            <div style="font-weight: bold; margin-bottom: 8px;">${d.name}</div>
+            <div style="color: #aaa;">Address:</div>
+            <div style="word-break: break-all; margin-bottom: 8px;">${d.address}</div>
+            <div style="color: #aaa;">Total Flow:</div>
+            <div>${flow.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})} CIRCLES</div>
+            ${constraintInfo}
+            <div style="margin-top: 8px; font-size: 0.9em;">
+              <div>Token Capacity: ${capacity.toLocaleString()} CIRCLES</div>
+              <div>Total Outflow: ${outflow.toLocaleString()} CIRCLES</div>
+              <div>Total Inflow: ${inflow.toLocaleString()} CIRCLES</div>
+            </div>
+          `;
+        } else {
+          // For links, source and target are now objects in the Sankey data structure
+          const transfersHtml = d.transfers.map(t => `
+            <div style="margin-bottom: 8px;">
+              <div style="color: #aaa;">Token Owner:</div>
+              <div style="word-break: break-all;">${t.tokenOwner}</div>
+              <div style="color: #aaa;">Amount:</div>
+              <div>${t.value.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})} CIRCLES</div>
+            </div>
+          `).join('');
+
+          return `
+            <div style="font-weight: bold; margin-bottom: 8px;">Trust Path</div>
+            <div style="color: #aaa;">From:</div>
+            <div>${d.source.name}</div>
+            <div style="color: #aaa;">To:</div>
+            <div style="margin-bottom: 8px;">${d.target.name}</div>
+            <div style="color: #aaa;">Total Amount:</div>
+            <div style="margin-bottom: 12px;">${d.value.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})} CIRCLES</div>
+            <div style="font-weight: bold;">Transfers:</div>
+            ${transfersHtml}
+          `;
+        }
+      }
+
+      // Update tooltip bindings with fixed positioning
+      function showTooltip(event, content) {
+        const tooltipWidth = 300;
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        let left = event.clientX + 10;
+        let top = event.clientY + 10;
+        
+        if (left + tooltipWidth > windowWidth) {
+          left = event.clientX - tooltipWidth - 10;
+        }
+        if (top + 100 > windowHeight) {
+          top = event.clientY - 100;
+        }
+
+        tooltip.transition()
+          .duration(200)
+          .style("opacity", .9);
+        
+        tooltip.html(content)
+          .style("left", left + "px")
+          .style("top", top + "px");
+      }
+
+      function hideTooltip() {
+        tooltip.transition()
+          .duration(500)
+          .style("opacity", 0);
+      }
+
+      // Create SVG
+      const svg = d3.select("#visualization")
+        .append("svg")
+        .attr("width", visualization.clientWidth - 40)
+        .attr("height", 800)
+        .append("g")
+        .attr("transform", `translate(50,30)`);
+
+      // Set up Sankey layout
+      const sankey = d3.sankey()
+        .nodeWidth(25)
+        .nodePadding(30)
+        .nodeAlign(d3.sankeyJustify)
+        .extent([[0, 0], [visualization.clientWidth - 100, 800]]);
+
+      // Generate Sankey diagram
+      const graph = {
+        nodes: nodes,
+        links: links
+      };
+
+      // Compute the Sankey layout
+      sankey(graph);
+
+      // Add links with curved paths and their overlays together
+      const linkGroup = svg.append("g")
+        .selectAll(".link-group")
+        .data(graph.links)
+        .enter()
+        .append("g")
+        .attr("class", "link-group");
+
+      // Add the actual visible link path
+      linkGroup.append("path")
+        .attr("class", "link")
+        .attr("d", d3.sankeyLinkHorizontal())
+        .attr("stroke-width", d => Math.max(2, d.width))
+        .style("stroke", "#5C49E4")
+        .style("stroke-opacity", 0.2)
+        .style("fill", "none")
+        .sort((a, b) => b.width - a.width);
+
+      // Add the wider invisible path for better hover detection
+      linkGroup.append("path")
+        .attr("class", "link-overlay")
+        .attr("d", d3.sankeyLinkHorizontal())
+        .attr("stroke-width", d => Math.max(10, d.width + 8))
+        .style("stroke", "transparent")
+        .style("fill", "none")
+        .style("pointer-events", "all")
+        .on("mouseover", function(event, d) {
+          const linkPath = d3.select(this.parentNode).select(".link");
+          linkPath.style("stroke-opacity", 0.5);
+          showTooltip(event, formatTooltip(d));
+        })
+        .on("mouseout", function() {
+          const linkPath = d3.select(this.parentNode).select(".link");
+          linkPath.style("stroke-opacity", 0.2);
+          hideTooltip();
+        })
+        .on("mousemove", function(event, d) {
+          showTooltip(event, formatTooltip(d));
+        });
+
+      // Add nodes with updated colors
+      const node = svg.append("g")
+        .selectAll(".node")
+        .data(graph.nodes)
+        .enter()
+        .append("g")
+        .attr("class", "node")
+        .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+      // Add rectangles to nodes with constraint-based colors
+      node.append("rect")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("height", d => (d.y1 - d.y0))
+        .attr("width", sankey.nodeWidth())
+        .style("fill", d => getNodeColor(d))
+        .style("opacity", 0.8)
+        .on("mouseover", function(event, d) {
+          d3.select(this).style("opacity", 1);
+          showTooltip(event, formatTooltip(d, true));
+        })
+        .on("mouseout", function() {
+          d3.select(this).style("opacity", 0.8);
+          hideTooltip();
+        })
+        .on("mousemove", function(event, d) {
+          showTooltip(event, formatTooltip(d, true));
+        });
+
+      node.append("text")
+        .attr("x", d => d.x0 < visualization.clientWidth / 2 ? sankey.nodeWidth() + 6 : -6)
+        .attr("y", d => (d.y1 - d.y0) / 2)
+        .attr("dy", "0.35em")
+        .attr("text-anchor", d => d.x0 < visualization.clientWidth / 2 ? "start" : "end")
+        .text(d => d.name)
+        .style("font-size", "12px")
+        .style("font-weight", "600")
+        .each(function(d) {
+          const bbox = this.getBBox();
+          const padding = 4;
+          d3.select(this.parentNode)
+            .insert("rect", "text")
+            .attr("x", bbox.x - padding)
+            .attr("y", bbox.y - padding)
+            .attr("width", bbox.width + (padding * 2))
+            .attr("height", bbox.height + (padding * 2))
+            .style("fill", "white")
+            .style("fill-opacity", 0.9)
+            .style("rx", 3);
+        });
+
+      // Make nodes draggable
+      node.call(d3.drag()
+        .subject(d => d)
+        .on("start", function(event, d) {
+          d3.select(this).raise();
+          d.dragStartX = event.x;
+          d.dragStartY = event.y;
+          d.initialX0 = d.x0;
+          d.initialY0 = d.y0;
+        })
+        .on("drag", function(event, d) {
+          const dx = event.x - d.dragStartX;
+          const dy = event.y - d.dragStartY;
+          
+          d.x0 = d.initialX0 + dx;
+          d.x1 = d.x0 + sankey.nodeWidth();
+          d.y0 = d.initialY0 + dy;
+          d.y1 = d.y0 + (d.y1 - d.y0);
+
+          // Constrain to visualization bounds
+          const xRange = [0, visualization.clientWidth - 100 - sankey.nodeWidth()];
+          const yRange = [0, 800 - 60 - (d.y1 - d.y0)];
+          
+          d.x0 = Math.max(xRange[0], Math.min(xRange[1], d.x0));
+          d.x1 = d.x0 + sankey.nodeWidth();
+          d.y0 = Math.max(yRange[0], Math.min(yRange[1], d.y0));
+          d.y1 = d.y0 + (d.y1 - d.y0);
+
+          d3.select(this)
+            .attr("transform", `translate(${d.x0},${d.y0})`);
+
+          sankey.update(graph);
+          linkGroup.selectAll(".link").attr("d", d3.sankeyLinkHorizontal());
+        }));
+    }
+
+    // Event listener for visualize button
+    visualizeButton.addEventListener("click", async () => {
+      const source = sourceInput.value.trim();
+      const target = targetInput.value.trim();
+      const flow = parseFloat(flowInput.value);
+
+      if (!source || !target) {
+        alert("Please enter both source and target addresses");
+        return;
+      }
+
+      if (isNaN(flow) || flow <= 0) {
+        alert("Please enter a valid flow amount");
+        return;
+      }
+
+      // Show loading state
+      visualization.innerHTML = '<div class="loader"></div>';
+
+      try {
+        // Try to find trust paths with the requested amount
+        try {
+          const { paths, transfers } = await findTrustPaths(source, target, flow);
+          
+          // Get all unique addresses from paths
+          const allAddresses = new Set();
+          paths.forEach(path => {
+            path.forEach(addr => allAddresses.add(addr));
+          });
+
+          // Get profile names for all addresses
+          const nameMap = await getProfileNames(Array.from(allAddresses));
+
+          // Create visualization
+          createSankeyDiagram(paths, transfers, nameMap);
+        } catch (error) {
+          if (error.message.includes("too large") || error.message.includes("No valid path found")) {
+            // Try with a smaller amount
+            const smallerFlow = flow / 10;
+            visualization.innerHTML = `<p>Retrying with smaller amount (${smallerFlow} CIRCLES)...</p><div class="loader"></div>`;
+            
+            const { paths, transfers } = await findTrustPaths(source, target, smallerFlow);
+            
+            const allAddresses = new Set();
+            paths.forEach(path => {
+              path.forEach(addr => allAddresses.add(addr));
+            });
+
+            const nameMap = await getProfileNames(Array.from(allAddresses));
+            createSankeyDiagram(paths, transfers, nameMap);
+            
+            // Update the flow input with the successful amount
+            flowInput.value = smallerFlow;
+          } else {
+            throw error;
+          }
+        }
+      } catch (error) {
+        visualization.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+      }
+    });
+
+    // Load addresses from URL parameters if present
+    window.addEventListener("load", () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const source = urlParams.get("source");
+      const target = urlParams.get("target");
+      
+      if (source) sourceInput.value = source;
+      if (target) targetInput.value = target;
+      
+      if (source && target) {
+        visualizeButton.click();
+      }
+    });
+  </script>
+</body>
+</html> 
