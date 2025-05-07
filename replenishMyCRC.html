@@ -1,509 +1,495 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Replenish My CRC</title>
-        <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                margin: 2rem;
-                max-width: 800px;
-                margin: 0 auto;
-                padding: 20px;
-            }
-            .container {
-                background: #fff;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            }
-            button {
-                background: #5c49e4;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                padding: 10px;
-                width: 100%;
-                max-width: 400px;
-                margin: 5px 0;
-            }
-            button:hover {
-                background: #4a39cc;
-            }
-            button:disabled {
-                background: #ccc;
-                cursor: not-allowed;
-            }
-            .section {
-                margin-bottom: 20px;
-                padding: 15px;
-                border: 1px solid #eee;
-                border-radius: 4px;
-            }
-            .error {
-                color: red;
-                margin: 10px 0;
-            }
-            .success {
-                color: green;
-                margin: 10px 0;
-            }
-            #amountControls {
-                display: none;
-            }
-            .slider-container {
-                margin: 20px 0;
-            }
-            input[type="range"] {
-                width: 100%;
-                max-width: 400px;
-            }
-            input[type="number"] {
-                padding: 8px;
-                margin: 5px 0;
-                width: 100%;
-                max-width: 382px; /* 400px - 2*padding */
-            }
-            pre {
-                background: #f5f5f5;
-                padding: 10px;
-                overflow-x: auto;
-                border-radius: 4px;
-            }
-            .info {
-                background: #f0f9ff;
-                border-left: 4px solid #3b82f6;
-                padding: 10px;
-                margin: 10px 0;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Replenish my CRC</h1>
-            Tool to replenish your balance of your own CRC.
-            <div class="section">
-                <h2>1. Connect Wallet</h2>
-                <button id="connectButton">Connect Wallet</button>
-                <div id="walletStatus"></div>
-            </div>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Replenish My CRC</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+      body {
+          font-family: Arial, sans-serif;
+          margin: 2rem;
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 20px;
+      }
 
-            <div class="section">
-                <h2>2. Check max replenishable amount</h2>
-                <div class="info">
-                    This will check the maximum amount you can transfer to
-                    yourself using your own tokens.
-                </div>
-                <button id="checkPathButton">Check</button>
-                <div id="maxFlowResult"></div>
-            </div>
+      .container {
+          background: #fff;
+          padding: 20px;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
 
-            <div id="amountControls" class="section">
-                <h2>3. Select amount to replenish</h2>
-                <div class="slider-container">
-                    <input
-                        type="range"
-                        id="amountSlider"
-                        min="0"
-                        max="100"
-                        step="0.000001"
-                    />
-                    <input type="number" id="amountInput" step="0.000001" />
-                    <div id="amountDisplay"></div>
-                </div>
-                <button id="executeButton">Replenish</button>
-                <div id="executionStatus"></div>
-                <pre id="calldata"></pre>
-            </div>
-        </div>
+      button {
+          background: #5c49e4;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          padding: 10px;
+          width: 100%;
+          max-width: 400px;
+          margin: 5px 0;
+      }
 
-        <script>
-            // Constants
-            const API_ENDPOINT = "https://rpc.aboutcircles.com/";
-            const CIRCLES_HUB_ADDRESS =
-                "0xc12C1E50ABB450d6205Ea2C3Fa861b3B834d13e8";
-            // Just the operateFlowMatrix function ABI
-            const CIRCLES_HUB_ABI = [
+      button:hover {
+          background: #4a39cc;
+      }
+
+      button:disabled {
+          background: #ccc;
+          cursor: not-allowed;
+      }
+
+      .section {
+          margin-bottom: 20px;
+          padding: 15px;
+          border: 1px solid #eee;
+          border-radius: 4px;
+      }
+
+      .error {
+          color: red;
+          margin: 10px 0;
+      }
+
+      .success {
+          color: green;
+          margin: 10px 0;
+      }
+
+      #amountControls {
+          display: none;
+      }
+
+      .slider-container {
+          margin: 20px 0;
+      }
+
+      input[type="range"] {
+          width: 100%;
+          max-width: 400px;
+      }
+
+      input[type="number"] {
+          padding: 8px;
+          margin: 5px 0;
+          width: 100%;
+          max-width: 382px; /* 400px - 2*padding */
+      }
+
+      pre {
+          background: #f5f5f5;
+          padding: 10px;
+          overflow-x: auto;
+          border-radius: 4px;
+      }
+
+      .info {
+          background: #f0f9ff;
+          border-left: 4px solid #3b82f6;
+          padding: 10px;
+          margin: 10px 0;
+      }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Replenish my CRC</h1>
+  Tool to replenish your balance of your own CRC.
+  <div class="section">
+    <h2>1. Connect Wallet</h2>
+    <button id="connectButton">Connect Wallet</button>
+    <div id="walletStatus"></div>
+  </div>
+
+  <div class="section">
+    <h2>2. Check max replenishable amount</h2>
+    <div class="info">
+      This will check the maximum amount you can transfer to
+      yourself using your own tokens.
+    </div>
+    <button id="checkPathButton">Check</button>
+    <div id="maxFlowResult"></div>
+  </div>
+
+  <div id="amountControls" class="section">
+    <h2>3. Select amount to replenish</h2>
+    <div class="slider-container">
+      <input
+          type="range"
+          id="amountSlider"
+          min="0"
+          max="100"
+          step="0.000001"
+      />
+      <input type="number" id="amountInput" step="0.000001"/>
+      <div id="amountDisplay"></div>
+    </div>
+    <button id="executeButton">Replenish</button>
+    <div id="executionStatus"></div>
+    <pre id="calldata"></pre>
+  </div>
+</div>
+
+<script>
+    // Constants
+    const API_ENDPOINT = "https://rpc.aboutcircles.com/";
+    const CIRCLES_HUB_ADDRESS =
+        "0xc12C1E50ABB450d6205Ea2C3Fa861b3B834d13e8";
+    // Just the operateFlowMatrix function ABI
+    const CIRCLES_HUB_ABI = [
+        {
+            inputs: [
                 {
-                    inputs: [
+                    internalType: "address[]",
+                    name: "_flowVertices",
+                    type: "address[]",
+                },
+                {
+                    components: [
                         {
-                            internalType: "address[]",
-                            name: "_flowVertices",
-                            type: "address[]",
+                            internalType: "uint16",
+                            name: "streamSinkId",
+                            type: "uint16",
                         },
                         {
-                            components: [
-                                {
-                                    internalType: "uint16",
-                                    name: "streamSinkId",
-                                    type: "uint16",
-                                },
-                                {
-                                    internalType: "uint192",
-                                    name: "amount",
-                                    type: "uint192",
-                                },
-                            ],
-                            internalType: "struct TypeDefinitions.FlowEdge[]",
-                            name: "_flow",
-                            type: "tuple[]",
+                            internalType: "uint192",
+                            name: "amount",
+                            type: "uint192",
+                        },
+                    ],
+                    internalType: "struct TypeDefinitions.FlowEdge[]",
+                    name: "_flow",
+                    type: "tuple[]",
+                },
+                {
+                    components: [
+                        {
+                            internalType: "uint16",
+                            name: "sourceCoordinate",
+                            type: "uint16",
                         },
                         {
-                            components: [
-                                {
-                                    internalType: "uint16",
-                                    name: "sourceCoordinate",
-                                    type: "uint16",
-                                },
-                                {
-                                    internalType: "uint16[]",
-                                    name: "flowEdgeIds",
-                                    type: "uint16[]",
-                                },
-                                {
-                                    internalType: "bytes",
-                                    name: "data",
-                                    type: "bytes",
-                                },
-                            ],
-                            internalType: "struct TypeDefinitions.Stream[]",
-                            name: "_streams",
-                            type: "tuple[]",
+                            internalType: "uint16[]",
+                            name: "flowEdgeIds",
+                            type: "uint16[]",
                         },
                         {
                             internalType: "bytes",
-                            name: "_packedCoordinates",
+                            name: "data",
                             type: "bytes",
                         },
                     ],
-                    name: "operateFlowMatrix",
-                    outputs: [],
-                    stateMutability: "nonpayable",
-                    type: "function",
+                    internalType: "struct TypeDefinitions.Stream[]",
+                    name: "_streams",
+                    type: "tuple[]",
                 },
-            ];
+                {
+                    internalType: "bytes",
+                    name: "_packedCoordinates",
+                    type: "bytes",
+                },
+            ],
+            name: "operateFlowMatrix",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+        },
+    ];
 
-            let provider, signer, hubContract;
-            let maxFlow = "0";
-            let currentAddress = null;
+    let provider, signer, hubContract;
+    let maxFlow = "0";
+    let currentAddress = null;
 
-            // Helper function to format Wei to ETH
-            function formatWei(wei) {
-                return ethers.utils.formatUnits(wei, 18);
+    // Helper function to format Wei to ETH
+    function formatWei(wei) {
+        return ethers.utils.formatUnits(wei, 18);
+    }
+
+    // Helper function to parse ETH to Wei
+    function parseEth(eth) {
+        return ethers.utils.parseUnits(eth.toString(), 18);
+    }
+
+    // Connect wallet function
+    async function connectWallet() {
+        try {
+            if (typeof window.ethereum === "undefined") {
+                throw new Error("Please install MetaMask");
             }
 
-            // Helper function to parse ETH to Wei
-            function parseEth(eth) {
-                return ethers.utils.parseUnits(eth.toString(), 18);
+            provider = new ethers.providers.Web3Provider(
+                window.ethereum,
+            );
+            await provider.send("eth_requestAccounts", []);
+            signer = provider.getSigner();
+            currentAddress = await signer.getAddress();
+
+            document.getElementById("walletStatus").innerHTML =
+                `<div class="success">Connected: ${currentAddress}</div>`;
+
+            hubContract = new ethers.Contract(
+                CIRCLES_HUB_ADDRESS,
+                CIRCLES_HUB_ABI,
+                signer,
+            );
+        } catch (error) {
+            document.getElementById("walletStatus").innerHTML =
+                `<div class="error">Error: ${error.message}</div>`;
+        }
+    }
+
+    // Find path function
+    async function findPath(amount = null) {
+        if (!currentAddress) {
+            return null; // Silent return if no wallet is connected
+        }
+
+        const params = {
+            Source: currentAddress,
+            Sink: currentAddress, // Send to self
+            TargetFlow: amount || parseEth("100000000000").toString(), // Use large number for max flow check
+            WithWrap: false,
+            ToTokens: [currentAddress], // Specify connected address as return token
+        };
+
+        const response = await fetch(API_ENDPOINT, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                id: 0,
+                method: "circlesV2_findPath",
+                params: [params],
+            }),
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+
+        return data.result;
+    }
+
+    // Helper to pack coordinates array into bytes
+    function packCoordinates(coordinates) {
+        let packedBuffer = "0x";
+        coordinates.forEach((coord) => {
+            let hex = coord.toString(16).padStart(4, "0");
+            packedBuffer += hex;
+        });
+        return packedBuffer;
+    }
+
+    /**
+     * Build the four arguments expected by Hub.operateFlowMatrix()
+     * from a Pathfinder result.
+     *
+     * @param {object}   pathData  – result of circlesV2_findPath
+     * @param {string}   from      – source avatar (connected wallet)
+     * @param {string}   to        – sink avatar   (usually = from)
+     * @param {string}   value     – target flow   (dec / hex string)
+     *
+     * @returns {{
+     *   _flowVertices: string[],
+     *   _flow:        { streamSinkId: number, amount: string|bigint }[],
+     *   _streams:     { sourceCoordinate: number, flowEdgeIds: number[], data: Uint8Array }[],
+     *   _packedCoordinates: Uint8Array,
+     *   sourceCoordinate: number
+     * }}
+     */
+    function generateFlowMatrixParams(pathData, from, to, value) {
+        // ────── guards ───────────────────────────────────────────────────────
+        if (!pathData || !Array.isArray(pathData.transfers) || !pathData.transfers.length)
+            throw new Error('Pathfinder returned no transfers');
+
+        from = from.toLowerCase();
+        to = to.toLowerCase();
+
+        const expectedValue = BigInt(value);
+
+        // ────── 1. normalise transfers + collect all addresses ───────────────
+        const addrs = new Set([from, to]);
+        const transfers = pathData.transfers.map(t => {
+            const norm = {
+                from: t.from.toLowerCase(),
+                to: t.to.toLowerCase(),
+                tokenOwner: t.tokenOwner.toLowerCase(),
+                value: t.value                 // string
+            };
+            addrs.add(norm.from);
+            addrs.add(norm.to);
+            addrs.add(norm.tokenOwner);
+            return norm;
+        });
+
+        // ────── 2. strictly-ascending vertices (numeric compare) ─────────────
+        const flowVertices = [...addrs].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1));
+
+        // lookup[address] → coordinate
+        const lookUpMap = Object.create(null);
+        flowVertices.forEach((addr, idx) => (lookUpMap[addr] = idx));
+
+        // ────── 3. flow edges, mark edges that reach the sink ────────────────
+        const flowEdges = transfers.map(t => ({
+            streamSinkId: (t.to === to) ? 1 : 0,      // only edges that end in 'to' get 1
+            amount: BigInt(t.value)             // uint192 fits in JS BigInt
+        }));
+
+        // ensure *at least* one edge is terminal
+        if (!flowEdges.some(e => e.streamSinkId === 1)) {
+            const lastIdx = transfers.map(t => t.to).lastIndexOf(to);
+            (lastIdx >= 0 ? flowEdges[lastIdx] : flowEdges[flowEdges.length - 1]).streamSinkId = 1;
+        }
+
+        // verify sum( terminal amounts ) == value requested
+        const terminalSum = flowEdges
+            .filter(e => e.streamSinkId === 1)
+            .reduce((s, e) => s + e.amount, 0n);
+
+        if (terminalSum !== expectedValue)
+            throw new Error(`terminal amount ${terminalSum} ≠ requested ${expectedValue}`);
+
+        // ────── 4. one Stream referencing all terminal edges ─────────────────
+        const flowEdgeIds = flowEdges
+            .map((e, idx) => (e.streamSinkId === 1 ? idx : -1))
+            .filter(idx => idx !== -1);
+
+        const stream = {
+            sourceCoordinate: lookUpMap[from],
+            flowEdgeIds: flowEdgeIds,
+            data: new Uint8Array()        // no user-data
+        };
+
+        // ────── 5. coordinate triples (tokenId, src, dst) ────────────────────
+        const coords = [];
+        transfers.forEach(t => {
+            coords.push(
+                lookUpMap[t.tokenOwner],
+                lookUpMap[t.from],
+                lookUpMap[t.to]
+            );
+        });
+
+        // pack uint16[] → Uint8Array big-endian
+        const packed = new Uint8Array(coords.length * 2);
+        coords.forEach((c, i) => {
+            packed[2 * i] = c >> 8;
+            packed[2 * i + 1] = c & 0xff;
+        });
+
+        // ────── 6. return exactly what operateFlowMatrix expects ─────────────
+        return {
+            _flowVertices: flowVertices,
+            _flow: flowEdges,
+            _streams: [stream],
+            _packedCoordinates: packed,
+            sourceCoordinate: lookUpMap[from]      // optional convenience
+        };
+    }
+
+
+    // Event Listeners
+    document
+        .getElementById("connectButton")
+        .addEventListener("click", connectWallet);
+
+    document
+        .getElementById("checkPathButton")
+        .addEventListener("click", async () => {
+            if (!currentAddress) {
+                document.getElementById("maxFlowResult").innerHTML =
+                    `<div class="error">Please connect your wallet first</div>`;
+                return;
             }
 
-            // Connect wallet function
-            async function connectWallet() {
-                try {
-                    if (typeof window.ethereum === "undefined") {
-                        throw new Error("Please install MetaMask");
-                    }
+            try {
+                const result = await findPath();
+                maxFlow = result.maxFlow;
+                const maxFlowEth = formatWei(maxFlow);
 
-                    provider = new ethers.providers.Web3Provider(
-                        window.ethereum,
-                    );
-                    await provider.send("eth_requestAccounts", []);
-                    signer = provider.getSigner();
-                    currentAddress = await signer.getAddress();
+                document.getElementById("maxFlowResult").innerHTML =
+                    `<div class="success">Maximum available: ${maxFlowEth} CRC</div>`;
 
-                    document.getElementById("walletStatus").innerHTML =
-                        `<div class="success">Connected: ${currentAddress}</div>`;
+                // Show and setup amount controls
+                const amountControls =
+                    document.getElementById("amountControls");
+                amountControls.style.display = "block";
 
-                    hubContract = new ethers.Contract(
-                        CIRCLES_HUB_ADDRESS,
-                        CIRCLES_HUB_ABI,
-                        signer,
-                    );
-                } catch (error) {
-                    document.getElementById("walletStatus").innerHTML =
-                        `<div class="error">Error: ${error.message}</div>`;
-                }
+                const slider = document.getElementById("amountSlider");
+                const input = document.getElementById("amountInput");
+
+                slider.max = maxFlowEth;
+                slider.value = maxFlowEth;
+                input.value = maxFlowEth;
+
+                document.getElementById("amountDisplay").textContent =
+                    `Selected: ${maxFlowEth} CRC`;
+            } catch (error) {
+                document.getElementById("maxFlowResult").innerHTML =
+                    `<div class="error">Error: ${error.message}</div>`;
+            }
+        });
+
+    // Sync slider and input
+    document
+        .getElementById("amountSlider")
+        .addEventListener("input", (e) => {
+            const value = e.target.value;
+            document.getElementById("amountInput").value = value;
+            document.getElementById("amountDisplay").textContent =
+                `Selected: ${value} CRC`;
+        });
+
+    document
+        .getElementById("amountInput")
+        .addEventListener("input", (e) => {
+            const value = Math.min(e.target.value, formatWei(maxFlow));
+            document.getElementById("amountSlider").value = value;
+            document.getElementById("amountDisplay").textContent =
+                `Selected: ${value} CRC`;
+        });
+
+    document
+        .getElementById("executeButton")
+        .addEventListener("click", async () => {
+            if (!currentAddress) {
+                document.getElementById("executionStatus").innerHTML =
+                    `<div class="error">Please connect your wallet first</div>`;
+                return;
             }
 
-            // Find path function
-            async function findPath(amount = null) {
-                if (!currentAddress) {
-                    return null; // Silent return if no wallet is connected
-                }
+            try {
+                const amount = parseEth(
+                    document.getElementById("amountInput").value,
+                );
+                const pathData = await findPath(amount.toString());
+                const params = generateFlowMatrixParams(pathData, currentAddress, currentAddress, amount.toString());
 
-                const params = {
-                    Source: currentAddress,
-                    Sink: currentAddress, // Send to self
-                    TargetFlow: amount || parseEth("100000000000").toString(), // Use large number for max flow check
-                    WithWrap: false,
-                    ToTokens: [currentAddress], // Specify connected address as return token
-                };
+                // document.getElementById("calldata").textContent =
+                // JSON.stringify(params, null, 2);
 
-                const response = await fetch(API_ENDPOINT, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        jsonrpc: "2.0",
-                        id: 0,
-                        method: "circlesV2_findPath",
-                        params: [params],
-                    }),
-                });
+                const tx = await hubContract.operateFlowMatrix(
+                    params._flowVertices,
+                    params._flow,
+                    params._streams,
+                    params._packedCoordinates,
+                );
 
-                const data = await response.json();
-                if (data.error) {
-                    throw new Error(data.error.message);
-                }
+                document.getElementById("executionStatus").innerHTML =
+                    `<div class="success">Transaction submitted: ${tx.hash}</div>`;
 
-                return data.result;
+                const receipt = await tx.wait();
+                document.getElementById("executionStatus").innerHTML +=
+                    `<div class="success">Transaction confirmed!</div>`;
+            } catch (error) {
+                document.getElementById("executionStatus").innerHTML =
+                    `<div class="error">Error: ${error.message}</div>`;
             }
-
-            // Helper to pack coordinates array into bytes
-            function packCoordinates(coordinates) {
-                let packedBuffer = "0x";
-                coordinates.forEach((coord) => {
-                    let hex = coord.toString(16).padStart(4, "0");
-                    packedBuffer += hex;
-                });
-                return packedBuffer;
-            }
-
-            // Generate flow matrix parameters
-            function generateFlowMatrixParams(pathData, from) {
-                if (
-                    !pathData ||
-                    !from ||
-                    !pathData.transfers ||
-                    pathData.transfers.length === 0
-                )
-                    return null;
-
-                try {
-                    // Extract the 'to' address
-                    const to =
-                        pathData.transfers.length > 0
-                            ? pathData.transfers[
-                                  pathData.transfers.length - 1
-                              ].to.toLowerCase()
-                            : null;
-
-                    // Normalize from address
-                    from = from.toLowerCase();
-
-                    // 1. Build the vertices list
-                    const addressSet = new Set();
-                    addressSet.add(from);
-                    if (to) addressSet.add(to);
-
-                    // Normalize all transfers
-                    const normalizedTransfers = pathData.transfers.map((t) => ({
-                        from: t.from.toLowerCase(),
-                        to: t.to.toLowerCase(),
-                        tokenOwner: t.tokenOwner.toLowerCase(),
-                        value: t.value,
-                    }));
-
-                    // Add all addresses from transfers
-                    normalizedTransfers.forEach((transfer) => {
-                        addressSet.add(transfer.from);
-                        addressSet.add(transfer.to);
-                        addressSet.add(transfer.tokenOwner);
-                    });
-
-                    // Convert to sorted array
-                    const flowVertices = Array.from(addressSet).sort((a, b) => {
-                        const aHex = a.startsWith("0x") ? a : "0x" + a;
-                        const bHex = b.startsWith("0x") ? b : "0x" + b;
-
-                        try {
-                            const bigintA = BigInt(aHex);
-                            const bigintB = BigInt(bHex);
-                            return bigintA < bigintB
-                                ? -1
-                                : bigintA > bigintB
-                                  ? 1
-                                  : 0;
-                        } catch (e) {
-                            return a.localeCompare(b);
-                        }
-                    });
-
-                    // 2. Create address to index lookup
-                    const lookup = {};
-                    flowVertices.forEach((addr, index) => {
-                        lookup[addr] = index;
-                    });
-
-                    // 3. Build flow edges and coordinates
-                    const flowEdges = [];
-                    const coordinates = [];
-
-                    normalizedTransfers.forEach((transfer) => {
-                        const isToSink = to && transfer.to === to;
-
-                        flowEdges.push({
-                            streamSinkId: isToSink ? 1 : 0,
-                            amount: transfer.value,
-                        });
-
-                        coordinates.push(
-                            lookup[transfer.tokenOwner],
-                            lookup[transfer.from],
-                            lookup[transfer.to],
-                        );
-                    });
-
-                    // Ensure at least one terminal edge is marked
-                    if (
-                        !flowEdges.some((edge) => edge.streamSinkId === 1) &&
-                        flowEdges.length > 0
-                    ) {
-                        const lastIndex = normalizedTransfers
-                            .map((t) => t.to)
-                            .lastIndexOf(to);
-                        if (lastIndex !== -1) {
-                            flowEdges[lastIndex].streamSinkId = 1;
-                        } else {
-                            flowEdges[flowEdges.length - 1].streamSinkId = 1;
-                        }
-                    }
-
-                    // 4. Create flowEdgeIds array
-                    const flowEdgeIds = flowEdges
-                        .map((edge, index) =>
-                            edge.streamSinkId === 1 ? index : -1,
-                        )
-                        .filter((index) => index !== -1);
-
-                    // 5. Create stream object
-                    const stream = {
-                        sourceCoordinate: lookup[from],
-                        flowEdgeIds: flowEdgeIds,
-                        data: "0x",
-                    };
-
-                    // 6. Pack coordinates
-                    const packedCoordinates = packCoordinates(coordinates);
-
-                    return {
-                        _flowVertices: flowVertices,
-                        _flow: flowEdges,
-                        _streams: [stream],
-                        _packedCoordinates: packedCoordinates,
-                    };
-                } catch (error) {
-                    console.error(
-                        "Error generating operateFlowMatrix params:",
-                        error,
-                    );
-                    return null;
-                }
-            }
-
-            // Event Listeners
-            document
-                .getElementById("connectButton")
-                .addEventListener("click", connectWallet);
-
-            document
-                .getElementById("checkPathButton")
-                .addEventListener("click", async () => {
-                    if (!currentAddress) {
-                        document.getElementById("maxFlowResult").innerHTML =
-                            `<div class="error">Please connect your wallet first</div>`;
-                        return;
-                    }
-
-                    try {
-                        const result = await findPath();
-                        maxFlow = result.maxFlow;
-                        const maxFlowEth = formatWei(maxFlow);
-
-                        document.getElementById("maxFlowResult").innerHTML =
-                            `<div class="success">Maximum available: ${maxFlowEth} CRC</div>`;
-
-                        // Show and setup amount controls
-                        const amountControls =
-                            document.getElementById("amountControls");
-                        amountControls.style.display = "block";
-
-                        const slider = document.getElementById("amountSlider");
-                        const input = document.getElementById("amountInput");
-
-                        slider.max = maxFlowEth;
-                        slider.value = maxFlowEth;
-                        input.value = maxFlowEth;
-
-                        document.getElementById("amountDisplay").textContent =
-                            `Selected: ${maxFlowEth} CRC`;
-                    } catch (error) {
-                        document.getElementById("maxFlowResult").innerHTML =
-                            `<div class="error">Error: ${error.message}</div>`;
-                    }
-                });
-
-            // Sync slider and input
-            document
-                .getElementById("amountSlider")
-                .addEventListener("input", (e) => {
-                    const value = e.target.value;
-                    document.getElementById("amountInput").value = value;
-                    document.getElementById("amountDisplay").textContent =
-                        `Selected: ${value} CRC`;
-                });
-
-            document
-                .getElementById("amountInput")
-                .addEventListener("input", (e) => {
-                    const value = Math.min(e.target.value, formatWei(maxFlow));
-                    document.getElementById("amountSlider").value = value;
-                    document.getElementById("amountDisplay").textContent =
-                        `Selected: ${value} CRC`;
-                });
-
-            document
-                .getElementById("executeButton")
-                .addEventListener("click", async () => {
-                    if (!currentAddress) {
-                        document.getElementById("executionStatus").innerHTML =
-                            `<div class="error">Please connect your wallet first</div>`;
-                        return;
-                    }
-
-                    try {
-                        const amount = parseEth(
-                            document.getElementById("amountInput").value,
-                        );
-                        const pathData = await findPath(amount.toString());
-
-                        const params = generateFlowMatrixParams(
-                            pathData,
-                            currentAddress,
-                        );
-                        // document.getElementById("calldata").textContent =
-                        // JSON.stringify(params, null, 2);
-
-                        const tx = await hubContract.operateFlowMatrix(
-                            params._flowVertices,
-                            params._flow,
-                            params._streams,
-                            params._packedCoordinates,
-                        );
-
-                        document.getElementById("executionStatus").innerHTML =
-                            `<div class="success">Transaction submitted: ${tx.hash}</div>`;
-
-                        const receipt = await tx.wait();
-                        document.getElementById("executionStatus").innerHTML +=
-                            `<div class="success">Transaction confirmed!</div>`;
-                    } catch (error) {
-                        document.getElementById("executionStatus").innerHTML =
-                            `<div class="error">Error: ${error.message}</div>`;
-                    }
-                });
-        </script>
-    </body>
+        });
+</script>
+</body>
 </html>
