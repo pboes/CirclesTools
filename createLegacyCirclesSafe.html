@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Legacy Circles Safe Creator</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        padding: 0;
+        background: #f7f7f7;
+      }
+      h1 {
+        color: #333;
+        text-align: center;
+      }
+      form {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 500px;
+        margin: 20px auto;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      label {
+        display: block;
+        margin-top: 15px;
+        font-weight: bold;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 1rem;
+      }
+      button {
+        margin-top: 20px;
+        padding: 10px 20px;
+        font-size: 16px;
+        background: #5c49e4;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        display: block;
+        width: 100%;
+      }
+      button:hover {
+        background: #4a39cc;
+      }
+      #status {
+        margin-top: 20px;
+        font-size: 14px;
+        color: #333;
+        text-align: center;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Legacy Circles Safe Creator</h1>
+    <form id="createSafeForm">
+      <label for="ownerAddress">Owner Address:</label>
+      <input type="text" id="ownerAddress" placeholder="0x..." required />
+
+      <button type="submit">Create Legacy Safe</button>
+    </form>
+    <div id="status"></div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        const statusElement = document.getElementById("status");
+
+        const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+        const SAFE_MASTER_COPY_ADDRESS =
+          "0x2CB0ebc503dE87CFD8f0eCEED8197bF7850184ae";
+
+        const PROXY_FACTORY_ADDRESS =
+          "0x8b4404DE0CaECE4b966a9959f134f0eFDa636156";
+
+        const safeAbi = [
+          "function setup(address[] calldata _owners, uint256 _threshold, address to, bytes calldata data, address fallbackHandler, address paymentToken, uint256 payment, address payable paymentReceiver) external",
+          "function getOwners() external view returns (address[] memory)",
+          "function nonce() external view returns (uint256)",
+        ];
+
+        const proxyFactoryAbi = [
+          "function createProxy(address masterCopy, bytes memory data) public returns (address proxy)",
+          "event ProxyCreation(address proxy)",
+        ];
+
+        // Connect to Ethereum
+        let provider;
+        let signer;
+
+        try {
+          if (window.ethereum) {
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+
+            await window.ethereum.request({ method: "eth_requestAccounts" });
+            signer = provider.getSigner();
+
+            const address = await signer.getAddress();
+            statusElement.innerText = `Connected with: ${address}`;
+          } else {
+            statusElement.innerText =
+              "Please install MetaMask to use this application";
+            return;
+          }
+        } catch (error) {
+          statusElement.innerText = `Error connecting to MetaMask: ${error.message}`;
+          return;
+        }
+
+        // Create contract instances
+        const proxyFactory = new ethers.Contract(
+          PROXY_FACTORY_ADDRESS,
+          proxyFactoryAbi,
+          signer
+        );
+
+        // Handle form submission
+        document
+          .getElementById("createSafeForm")
+          .addEventListener("submit", async (event) => {
+            event.preventDefault();
+            statusElement.innerText = "Creating Safe...";
+
+            try {
+              // Get the raw input value
+              const rawOwnerAddress = document
+                .getElementById("ownerAddress")
+                .value.trim();
+
+              // Validate basic address format first
+              if (!ethers.utils.isAddress(rawOwnerAddress)) {
+                statusElement.innerText =
+                  "Invalid address format. Please enter a valid Ethereum address.";
+                return;
+              }
+
+              // Convert to checksummed address
+              const ownerAddress = ethers.utils.getAddress(rawOwnerAddress);
+
+              // Create the setup data for the new Safe
+              const safeMasterCopy = new ethers.Contract(
+                "0x2CB0ebc503dE87CFD8f0eCEED8197bF7850184ae", //SAFE_MASTER_COPY_ADDRESS
+                safeAbi,
+                signer
+              );
+
+              // Encode the setup function call
+              const setupData = safeMasterCopy.interface.encodeFunctionData(
+                "setup",
+                [
+                  [ownerAddress], // Owners array with single owner
+                  1, // Threshold (1 for single owner)
+                  ZERO_ADDRESS, // to address for optional delegate call
+                  "0x", // data payload for optional delegate call
+                  ZERO_ADDRESS, // fallback handler
+                  ZERO_ADDRESS, // payment token
+                  0, // payment amount
+                  ZERO_ADDRESS, // payment receiver
+                ]
+              );
+
+              // Create transaction to deploy the proxy
+              statusElement.innerText =
+                "Submitting transaction to create Safe...";
+
+              // Call createProxy on the factory
+              const tx = await proxyFactory.createProxy(
+                SAFE_MASTER_COPY_ADDRESS,
+                setupData
+              );
+
+              statusElement.innerText = `Transaction submitted!\nTx hash: ${tx.hash}\nWaiting for confirmation...`;
+
+              // Wait for the transaction to be mined
+              const receipt = await tx.wait();
+
+              // Find the ProxyCreation event to get the new Safe address
+              const proxyCreationEvent = receipt.events.find(
+                (event) => event.event === "ProxyCreation"
+              );
+
+              if (proxyCreationEvent && proxyCreationEvent.args) {
+                const safeAddress = proxyCreationEvent.args.proxy;
+
+                // Verify the owner was added correctly
+                const newSafe = new ethers.Contract(
+                  safeAddress,
+                  safeAbi,
+                  signer
+                );
+                const owners = await newSafe.getOwners();
+
+                if (owners.includes(ownerAddress)) {
+                  statusElement.innerText = `Success! Legacy Safe created at: ${safeAddress}\n\nOwner: ${ownerAddress}`;
+                } else {
+                  statusElement.innerText = `Safe created at ${safeAddress}, but owner verification failed.`;
+                }
+              } else {
+                statusElement.innerText =
+                  "Transaction confirmed, but couldn't find the new Safe address in the events.";
+              }
+            } catch (error) {
+              console.error(error);
+              statusElement.innerText = `Error: ${error.message}`;
+            }
+          });
+      });
+    </script>
+  </body>
+</html>
