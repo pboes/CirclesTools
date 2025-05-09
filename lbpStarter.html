@@ -148,14 +148,22 @@
                 </div>
                 <div class="form-group">
                     <label for="assetAddress">Asset Address:</label>
-                    <input type="text" id="assetAddress" required value="0xaf204776c7245bf4147c2612bf6e5972ee483701" readonly>
+                    <select id="assetSelect" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; font-family:inherit;">
+                        <option value="0xaf204776c7245bf4147c2612bf6e5972ee483701">sDAI</option>
+                        <option value="0x9c58bacc331c9aa871afd802db6379a98e80cedb">GNO</option>
+                        <option value="0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1">WETH</option>
+                        <option value="0x8e5bbbb09ed1ebde8674cda39a0c169401db4252">WBTC</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                    <input type="text" id="assetAddress" style="display:none; margin-top:8px;" placeholder="Paste ERC20 address" />
+                    <div id="assetName" style="margin-top:4px; color:#666; font-size:0.95em;"></div>
                 </div>
                 <div class="form-group">
                     <label for="groupAmount">Group Amount (CRC):</label>
                     <input type="number" id="groupAmount" required step="any" value="480">
                 </div>
                 <div class="form-group">
-                    <label for="assetAmount">Asset Amount (sDAI):</label>
+                    <label for="assetAmount" id="assetAmountLabel">Asset Amount (sDAI):</label>
                     <input type="number" id="assetAmount" required step="any" value="1000">
                 </div>
 
@@ -296,8 +304,26 @@
                             contract.balanceGroup(),
                             contract.groupLBP()
                         ]);
+                        // Update asset dropdown to match the asset in the starter (if present in options)
+                        if (assetSelect) {
+                            let found = false;
+                            for (let i = 0; i < assetSelect.options.length; i++) {
+                                if (assetSelect.options[i].value.toLowerCase() === asset.toLowerCase()) {
+                                    assetSelect.value = asset;
+                                    assetAddressInput.style.display = 'none';
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (!found) {
+                                assetSelect.value = 'custom';
+                                assetAddressInput.value = asset;
+                                assetAddressInput.style.display = '';
+                            }
+                            updateAssetName();
+                        }
                         let html = `<b>LBP Starter Status</b><br>`;
-                        html += `<b>Asset:</b> ${asset}<br>`;
+                        html += `<b>Asset:</b> ${asset} <span id='statusAssetName' style='color:#666;'></span><br>`;
                         html += `<b>Asset Required:</b> ${formatEther(assetAmount)}<br>`;
                         html += `<b>Asset Sent:</b> ${formatEther(balanceAsset)}<br>`;
                         html += `<b>Group:</b> ${group}<br>`;
@@ -306,6 +332,8 @@
                         if (groupLBP && groupLBP !== ethers.constants.AddressZero) {
                             html += `<div style='margin-top:10px; color:green;'><b>LBP Created!</b><br>LBP Address: ${groupLBP}</div>`;
                             statusDiv.innerHTML = html;
+                            // Show asset name in status
+                            fetchAndShowAssetName(asset, 'statusAssetName', false);
                             return;
                         }
                         // What is missing?
@@ -329,6 +357,8 @@
                             }
                         }
                         statusDiv.innerHTML = html;
+                        // Show asset name in status
+                        fetchAndShowAssetName(asset, 'statusAssetName', false);
                         // Add event listeners for buttons
                         const createLBPBtn = document.getElementById('createLBPBtn');
                         if (createLBPBtn) {
@@ -407,7 +437,7 @@
 
                         // Get form values
                         const groupAddress = document.getElementById('groupAddress').value;
-                        const assetAddress = document.getElementById('assetAddress').value;
+                        const assetAddress = getCurrentAssetAddress();
                         const groupAmount = document.getElementById('groupAmount').value;
                         const assetAmount = document.getElementById('assetAmount').value;
                         
@@ -759,6 +789,54 @@
                         status.className = 'status error';
                     }
                 });
+
+                // Asset dropdown logic
+                const assetSelect = document.getElementById('assetSelect');
+                const assetAddressInput = document.getElementById('assetAddress');
+                function getCurrentAssetAddress() {
+                    if (assetSelect.value === 'custom') {
+                        return assetAddressInput.value;
+                    } else {
+                        return assetSelect.value;
+                    }
+                }
+                function updateAssetName() {
+                    fetchAndShowAssetName(getCurrentAssetAddress(), 'assetName', true);
+                }
+                // Show/hide custom input
+                assetSelect.addEventListener('change', function() {
+                    if (assetSelect.value === 'custom') {
+                        assetAddressInput.style.display = '';
+                        assetAddressInput.required = true;
+                    } else {
+                        assetAddressInput.style.display = 'none';
+                        assetAddressInput.required = false;
+                    }
+                    updateAssetName();
+                });
+                assetAddressInput.addEventListener('input', updateAssetName);
+                assetSelect.value = '0xaf204776c7245bf4147c2612bf6e5972ee483701'; // default to sDAI
+                updateAssetName();
+
+                // Fetch and display asset token name
+                async function fetchAndShowAssetName(address, targetId = 'assetName', updateAmountLabel = true) {
+                    if (!ethers.utils.isAddress(address)) {
+                        document.getElementById(targetId).textContent = '';
+                        if (updateAmountLabel) document.getElementById('assetAmountLabel').textContent = 'Asset Amount:';
+                        return;
+                    }
+                    try {
+                        const provider = new ethers.providers.Web3Provider(window.ethereum);
+                        const erc20 = new ethers.Contract(address, ["function name() view returns (string)", "function symbol() view returns (string)"] , provider);
+                        const name = await erc20.name();
+                        const symbol = await erc20.symbol();
+                        document.getElementById(targetId).textContent = `Token: ${name} (${symbol})`;
+                        if (updateAmountLabel) document.getElementById('assetAmountLabel').textContent = `Asset Amount (${symbol}):`;
+                    } catch (e) {
+                        document.getElementById(targetId).textContent = '';
+                        if (updateAmountLabel) document.getElementById('assetAmountLabel').textContent = 'Asset Amount:';
+                    }
+                }
             });
         </script>
     </body>
