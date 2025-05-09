@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>LBP Starter - Circles Tools</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            body {
+                margin: 0;
+                font-family: "Inter", Helvetica, Arial, sans-serif;
+                background: #ffffff;
+                color: #333;
+                line-height: 1.3;
+            }
+            header {
+                background: #5c49e4;
+                color: #fff;
+                padding: 20px;
+                text-align: center;
+            }
+            h1 {
+                margin: 0;
+                font-weight: 600;
+                font-size: 1.5rem;
+            }
+            p {
+                margin: 0.5rem 0 0;
+                font-weight: 400;
+            }
+            .container {
+                max-width: 800px;
+                margin: 40px auto;
+                padding: 0 20px;
+            }
+            .form-group {
+                margin-bottom: 20px;
+            }
+            label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: 600;
+            }
+            input {
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-family: inherit;
+            }
+            button {
+                background: #5c49e4;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: 600;
+            }
+            button:hover {
+                background: #4a3bc4;
+            }
+            .status {
+                margin-top: 20px;
+                padding: 10px;
+                border-radius: 4px;
+                display: none;
+            }
+            .status.success {
+                background: #e6ffe6;
+                color: #006600;
+                display: block;
+            }
+            .status.error {
+                background: #ffe6e6;
+                color: #cc0000;
+                display: block;
+            }
+            .connection-status {
+                margin: 20px 0;
+                padding: 10px;
+                border-radius: 4px;
+                background: #f0f0f0;
+            }
+            .connection-status.connected {
+                background: #e6ffe6;
+                color: #006600;
+            }
+            .connection-status.disconnected {
+                background: #ffe6e6;
+                color: #cc0000;
+            }
+            .advanced-toggle {
+                margin: 20px 0;
+                text-align: center;
+            }
+            .advanced-toggle button {
+                background: none;
+                color: #5c49e4;
+                border: 1px solid #5c49e4;
+                padding: 5px 15px;
+            }
+            .advanced-toggle button:hover {
+                background: #f0f0f0;
+            }
+            .advanced-params {
+                display: none;
+                border-top: 1px solid #ddd;
+                padding-top: 20px;
+                margin-top: 20px;
+            }
+            .advanced-params.visible {
+                display: block;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>LBP Starter</h1>
+            <p>Create and manage Liquidity Bootstrapping Pools</p>
+        </header>
+
+        <div class="container">
+            <div id="connectionStatus" class="connection-status disconnected">
+                Not connected to MetaMask
+            </div>
+
+            <!-- Continue with existing LBP Starter -->
+            <div style="margin-bottom: 30px; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+                <h3>Continue with Existing LBP Starter</h3>
+                <form id="existingStarterForm" style="display: flex; gap: 10px; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label for="existingStarterAddress">LBP Starter Address:</label>
+                        <input type="text" id="existingStarterAddress" placeholder="0x..." style="width: 100%;">
+                    </div>
+                    <button type="submit">Check Status</button>
+                </form>
+                <div id="existingStarterStatus"></div>
+            </div>
+
+            <form id="lbpForm">
+                <div class="form-group">
+                    <label for="groupAddress">Group Address:</label>
+                    <input type="text" id="groupAddress" required placeholder="0x...">
+                </div>
+                <div class="form-group">
+                    <label for="assetAddress">Asset Address:</label>
+                    <input type="text" id="assetAddress" required value="0xaf204776c7245bf4147c2612bf6e5972ee483701" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="groupAmount">Group Amount (CRC):</label>
+                    <input type="number" id="groupAmount" required step="any" value="480">
+                </div>
+                <div class="form-group">
+                    <label for="assetAmount">Asset Amount (sDAI):</label>
+                    <input type="number" id="assetAmount" required step="any" value="1000">
+                </div>
+
+                <div class="advanced-toggle">
+                    <button type="button" id="toggleAdvanced">Show Advanced Parameters</button>
+                </div>
+
+                <div class="advanced-params" id="advancedParams">
+                    <div class="form-group">
+                        <label for="groupInitWeight">Group Initial Weight (0-100):</label>
+                        <input type="number" id="groupInitWeight" min="0" max="100" value="80">
+                    </div>
+                    <div class="form-group">
+                        <label for="groupFinalWeight">Group Final Weight (0-100):</label>
+                        <input type="number" id="groupFinalWeight" min="0" max="100" value="20">
+                    </div>
+                    <div class="form-group">
+                        <label for="swapFee">Swap Fee (0-100):</label>
+                        <input type="number" id="swapFee" min="0" max="100" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="updateWeightDuration">Update Weight Duration (in seconds):</label>
+                        <input type="number" id="updateWeightDuration" value="86400">
+                    </div>
+                </div>
+
+                <button type="submit">Create LBP Starter</button>
+            </form>
+            <div id="status" class="status"></div>
+            <div id="starterStatus"></div>
+        </div>
+
+        <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+        <script>
+            // Wait for ethers to be available
+            window.addEventListener('load', async function() {
+                if (typeof ethers === 'undefined') {
+                    console.error('ethers.js failed to load');
+                    return;
+                }
+
+                const LBP_STARTER_ADDRESS = '0x3b36d73506c3e75fcacb27340faa38ade1cbaf0a';
+                const SDAI_ADDRESS = '0xaf204776c7245bf4147c2612bf6e5972ee483701';
+                
+                // Connection status handling
+                const connectionStatus = document.getElementById('connectionStatus');
+                
+                async function checkConnection() {
+                    if (typeof window.ethereum === 'undefined') {
+                        connectionStatus.textContent = 'MetaMask is not installed';
+                        connectionStatus.className = 'connection-status disconnected';
+                        return false;
+                    }
+
+                    try {
+                        // Request account access
+                        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                        const account = accounts[0];
+                        connectionStatus.textContent = `Connected: ${account}`;
+                        connectionStatus.className = 'connection-status connected';
+                        return true;
+                    } catch (error) {
+                        connectionStatus.textContent = 'Failed to connect to MetaMask';
+                        connectionStatus.className = 'connection-status disconnected';
+                        return false;
+                    }
+                }
+
+                // Check connection on page load
+                await checkConnection();
+
+                // Handle account changes
+                if (window.ethereum) {
+                    window.ethereum.on('accountsChanged', function (accounts) {
+                        if (accounts.length === 0) {
+                            connectionStatus.textContent = 'Not connected to MetaMask';
+                            connectionStatus.className = 'connection-status disconnected';
+                        } else {
+                            connectionStatus.textContent = `Connected: ${accounts[0]}`;
+                            connectionStatus.className = 'connection-status connected';
+                        }
+                    });
+                }
+                
+                // Toggle advanced parameters
+                document.getElementById('toggleAdvanced').addEventListener('click', function() {
+                    const advancedParams = document.getElementById('advancedParams');
+                    const button = this;
+                    if (advancedParams.classList.contains('visible')) {
+                        advancedParams.classList.remove('visible');
+                        button.textContent = 'Show Advanced Parameters';
+                    } else {
+                        advancedParams.classList.add('visible');
+                        button.textContent = 'Hide Advanced Parameters';
+                    }
+                });
+                
+                // Helper: format ether
+                function formatEther(val) {
+                    try { return ethers.utils.formatEther(val); } catch { return val; }
+                }
+
+                // Helper: open CowSwap link
+                function getCowSwapLink(token, to, amount) {
+                    // sDAI on Gnosis: 0xaf204776c7245bf4147c2612bf6e5972ee483701
+                    // CowSwap: https://swap.cow.fi/#/1/swap
+                    // We'll use Gnosis chain (chainId=100)
+                    // CowSwap expects amount in wei
+                    return `https://swap.cow.fi/#/100/swap/${token}-${to}?sellAmountBeforeFee=${amount}`;
+                }
+
+                // ABI for LBP Starter instance
+                const LBP_STARTER_INSTANCE_ABI = [
+                    {"inputs":[],"name":"ASSET","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[],"name":"ASSET_AMOUNT","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[],"name":"GROUP","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[],"name":"GROUP_AMOUNT","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[],"name":"balanceAsset","outputs":[{"internalType":"uint256","name":"balance","type":"uint256"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[],"name":"balanceGroup","outputs":[{"internalType":"uint256","name":"balance","type":"uint256"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[],"name":"groupLBP","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[],"name":"createGroupLBP","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"nonpayable","type":"function"}
+                ];
+
+                async function checkStarterStatus(starterAddress) {
+                    const statusDiv = document.getElementById('starterStatus') || document.getElementById('existingStarterStatus');
+                    statusDiv.innerHTML = 'Loading...';
+                    try {
+                        const provider = new ethers.providers.Web3Provider(window.ethereum);
+                        const signer = provider.getSigner();
+                        const contract = new ethers.Contract(starterAddress, LBP_STARTER_INSTANCE_ABI, signer);
+                        // Fetch all relevant info
+                        const [asset, assetAmount, group, groupAmount, balanceAsset, balanceGroup, groupLBP] = await Promise.all([
+                            contract.ASSET(),
+                            contract.ASSET_AMOUNT(),
+                            contract.GROUP(),
+                            contract.GROUP_AMOUNT(),
+                            contract.balanceAsset(),
+                            contract.balanceGroup(),
+                            contract.groupLBP()
+                        ]);
+                        let html = `<b>LBP Starter Status</b><br>`;
+                        html += `<b>Asset:</b> ${asset}<br>`;
+                        html += `<b>Asset Required:</b> ${formatEther(assetAmount)}<br>`;
+                        html += `<b>Asset Sent:</b> ${formatEther(balanceAsset)}<br>`;
+                        html += `<b>Group:</b> ${group}<br>`;
+                        html += `<b>Group Required:</b> ${formatEther(groupAmount)}<br>`;
+                        html += `<b>Group Sent:</b> ${formatEther(balanceGroup)}<br>`;
+                        if (groupLBP && groupLBP !== ethers.constants.AddressZero) {
+                            html += `<div style='margin-top:10px; color:green;'><b>LBP Created!</b><br>LBP Address: ${groupLBP}</div>`;
+                            statusDiv.innerHTML = html;
+                            return;
+                        }
+                        // What is missing?
+                        let missing = [];
+                        if (balanceAsset.lt(assetAmount)) missing.push('asset');
+                        if (balanceGroup.lt(groupAmount)) missing.push('group');
+                        if (missing.length === 0) {
+                            html += `<div style='margin-top:10px;'><button id='createLBPBtn'>Create LBP</button></div>`;
+                        } else {
+                            if (missing.includes('asset')) {
+                                html += `<div style='margin-top:10px;'><b>Send Asset (e.g. sDAI):</b><br>`;
+                                html += `<button id='sendAssetBtn'>Send from Wallet</button></div>`;
+                            }
+                            if (missing.includes('group')) {
+                                // Calculate missing CRC in whole units
+                                const missingCRC = groupAmount.sub(balanceGroup);
+                                const missingCRCWhole = ethers.utils.formatUnits(missingCRC, 18).replace(/\.0+$/, '');
+                                html += `<div style='margin-top:10px;'><b>Send Group Token:</b><br>`;
+                                html += `<a href='https://app.metri.xyz/transfer/${starterAddress}/crc/${missingCRCWhole}' target='_blank'>Send via Metri</a>`;
+                                html += `</div>`;
+                            }
+                        }
+                        statusDiv.innerHTML = html;
+                        // Add event listeners for buttons
+                        const createLBPBtn = document.getElementById('createLBPBtn');
+                        if (createLBPBtn) {
+                            createLBPBtn.onclick = async function() {
+                                statusDiv.innerHTML += '<br>Sending transaction...';
+                                try {
+                                    const tx = await contract.createGroupLBP();
+                                    await tx.wait();
+                                    statusDiv.innerHTML += '<br>LBP created! Reload status.';
+                                } catch (e) {
+                                    statusDiv.innerHTML += `<br>Error: ${e.message}`;
+                                }
+                            };
+                        }
+                        const sendAssetBtn = document.getElementById('sendAssetBtn');
+                        if (sendAssetBtn) {
+                            sendAssetBtn.onclick = async function() {
+                                statusDiv.innerHTML += '<br>Sending asset...';
+                                try {
+                                    // ERC20 ABI
+                                    const erc20 = new ethers.Contract(asset, ["function transfer(address to, uint256 amount) public returns (bool)"], signer);
+                                    const tx = await erc20.transfer(starterAddress, assetAmount.sub(balanceAsset));
+                                    await tx.wait();
+                                    statusDiv.innerHTML += '<br>Asset sent! Reload status.';
+                                } catch (e) {
+                                    statusDiv.innerHTML += `<br>Error: ${e.message}`;
+                                }
+                            };
+                        }
+                        const sendGroupBtn = document.getElementById('sendGroupBtn');
+                        if (sendGroupBtn) {
+                            sendGroupBtn.onclick = async function() {
+                                statusDiv.innerHTML += '<br>Sending group token...';
+                                try {
+                                    // ERC20 ABI
+                                    const erc20 = new ethers.Contract(group, ["function transfer(address to, uint256 amount) public returns (bool)"], signer);
+                                    const tx = await erc20.transfer(starterAddress, groupAmount.sub(balanceGroup));
+                                    await tx.wait();
+                                    statusDiv.innerHTML += '<br>Group token sent! Reload status.';
+                                } catch (e) {
+                                    statusDiv.innerHTML += `<br>Error: ${e.message}`;
+                                }
+                            };
+                        }
+                    } catch (e) {
+                        statusDiv.innerHTML = `<span style='color:red;'>Error: ${e.message}</span>`;
+                    }
+                }
+
+                // Existing starter form
+                document.getElementById('existingStarterForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const addr = document.getElementById('existingStarterAddress').value.trim();
+                    if (!ethers.utils.isAddress(addr)) {
+                        document.getElementById('existingStarterStatus').innerHTML = '<span style="color:red;">Invalid address</span>';
+                        return;
+                    }
+                    await checkStarterStatus(addr);
+                });
+
+                // After creation, show starter status
+                async function showNewStarterStatus(newStarterAddress) {
+                    document.getElementById('starterStatus').innerHTML = '';
+                    await checkStarterStatus(newStarterAddress);
+                }
+
+                document.getElementById('lbpForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const status = document.getElementById('status');
+                    document.getElementById('starterStatus').innerHTML = '';
+                    try {
+                        // Check if MetaMask is installed
+                        if (typeof window.ethereum === 'undefined') {
+                            throw new Error('Please install MetaMask to use this feature');
+                        }
+
+                        // Get form values
+                        const groupAddress = document.getElementById('groupAddress').value;
+                        const assetAddress = document.getElementById('assetAddress').value;
+                        const groupAmount = document.getElementById('groupAmount').value;
+                        const assetAmount = document.getElementById('assetAmount').value;
+                        
+                        // Create contract instance
+                        const contractABI = [
+                            {
+                                "inputs": [],
+                                "stateMutability": "nonpayable",
+                                "type": "constructor"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "InvalidAmount",
+                                "type": "error"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "InvalidFinalWeight",
+                                "type": "error"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "InvalidInitWeight",
+                                "type": "error"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "InvalidSwapFee",
+                                "type": "error"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "OnlyBaseGroupsAreSupported",
+                                "type": "error"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "OnlyStarter",
+                                "type": "error"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "OnlyTwoTokenLBPSupported",
+                                "type": "error"
+                            },
+                            {
+                                "anonymous": false,
+                                "inputs": [
+                                    {
+                                        "indexed": true,
+                                        "internalType": "address",
+                                        "name": "creator",
+                                        "type": "address"
+                                    },
+                                    {
+                                        "indexed": true,
+                                        "internalType": "address",
+                                        "name": "group",
+                                        "type": "address"
+                                    },
+                                    {
+                                        "indexed": true,
+                                        "internalType": "address",
+                                        "name": "lbp",
+                                        "type": "address"
+                                    }
+                                ],
+                                "name": "GroupLBPCreated",
+                                "type": "event"
+                            },
+                            {
+                                "anonymous": false,
+                                "inputs": [
+                                    {
+                                        "indexed": true,
+                                        "internalType": "address",
+                                        "name": "creator",
+                                        "type": "address"
+                                    },
+                                    {
+                                        "indexed": true,
+                                        "internalType": "address",
+                                        "name": "group",
+                                        "type": "address"
+                                    },
+                                    {
+                                        "indexed": true,
+                                        "internalType": "address",
+                                        "name": "asset",
+                                        "type": "address"
+                                    },
+                                    {
+                                        "indexed": false,
+                                        "internalType": "address",
+                                        "name": "lbpStarter",
+                                        "type": "address"
+                                    },
+                                    {
+                                        "indexed": false,
+                                        "internalType": "uint256",
+                                        "name": "groupAmount",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "indexed": false,
+                                        "internalType": "uint256",
+                                        "name": "assetAmount",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "indexed": false,
+                                        "internalType": "uint256",
+                                        "name": "groupInitWeight",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "indexed": false,
+                                        "internalType": "uint256",
+                                        "name": "groupFinalWeight",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "indexed": false,
+                                        "internalType": "uint256",
+                                        "name": "swapFee",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "indexed": false,
+                                        "internalType": "uint256",
+                                        "name": "updateWeightDuration",
+                                        "type": "uint256"
+                                    }
+                                ],
+                                "name": "LBPStarterCreated",
+                                "type": "event"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "BALANCER_WEIGHTED_MATH",
+                                "outputs": [
+                                    {
+                                        "internalType": "contract IExternalWeightedMath",
+                                        "name": "",
+                                        "type": "address"
+                                    }
+                                ],
+                                "stateMutability": "view",
+                                "type": "function"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "BASE_GROUP_FACTORY",
+                                "outputs": [
+                                    {
+                                        "internalType": "contract IBaseGroupFactory",
+                                        "name": "",
+                                        "type": "address"
+                                    }
+                                ],
+                                "stateMutability": "view",
+                                "type": "function"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "HUB_V2",
+                                "outputs": [
+                                    {
+                                        "internalType": "contract IHub",
+                                        "name": "",
+                                        "type": "address"
+                                    }
+                                ],
+                                "stateMutability": "view",
+                                "type": "function"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "LBP_FACTORY",
+                                "outputs": [
+                                    {
+                                        "internalType": "contract INoProtocolFeeLiquidityBootstrappingPoolFactory",
+                                        "name": "",
+                                        "type": "address"
+                                    }
+                                ],
+                                "stateMutability": "view",
+                                "type": "function"
+                            },
+                            {
+                                "inputs": [],
+                                "name": "VAULT",
+                                "outputs": [
+                                    {
+                                        "internalType": "address",
+                                        "name": "",
+                                        "type": "address"
+                                    }
+                                ],
+                                "stateMutability": "view",
+                                "type": "function"
+                            },
+                            {
+                                "inputs": [
+                                    {
+                                        "internalType": "address",
+                                        "name": "group",
+                                        "type": "address"
+                                    },
+                                    {
+                                        "internalType": "address",
+                                        "name": "asset",
+                                        "type": "address"
+                                    },
+                                    {
+                                        "internalType": "uint256",
+                                        "name": "groupAmount",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "internalType": "uint256",
+                                        "name": "assetAmount",
+                                        "type": "uint256"
+                                    }
+                                ],
+                                "name": "createLBPStarter",
+                                "outputs": [
+                                    {
+                                        "internalType": "address",
+                                        "name": "lbpStarter",
+                                        "type": "address"
+                                    }
+                                ],
+                                "stateMutability": "nonpayable",
+                                "type": "function"
+                            },
+                            {
+                                "inputs": [
+                                    {
+                                        "internalType": "address",
+                                        "name": "group",
+                                        "type": "address"
+                                    },
+                                    {
+                                        "internalType": "address",
+                                        "name": "asset",
+                                        "type": "address"
+                                    },
+                                    {
+                                        "internalType": "uint256",
+                                        "name": "groupAmount",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "internalType": "uint256",
+                                        "name": "assetAmount",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "internalType": "uint256",
+                                        "name": "groupInitWeight",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "internalType": "uint256",
+                                        "name": "groupFinalWeight",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "internalType": "uint256",
+                                        "name": "swapFee",
+                                        "type": "uint256"
+                                    },
+                                    {
+                                        "internalType": "uint256",
+                                        "name": "updateWeightDuration",
+                                        "type": "uint256"
+                                    }
+                                ],
+                                "name": "createLBPStarter",
+                                "outputs": [
+                                    {
+                                        "internalType": "address",
+                                        "name": "lbpStarter",
+                                        "type": "address"
+                                    }
+                                ],
+                                "stateMutability": "nonpayable",
+                                "type": "function"
+                            }
+                        ];
+
+                        console.log('Creating contract instance...');
+                        const provider = new ethers.providers.Web3Provider(window.ethereum);
+                        const signer = provider.getSigner();
+                        console.log('Provider and signer created');
+                        
+                        const contract = new ethers.Contract(LBP_STARTER_ADDRESS, contractABI, signer);
+                        console.log('Contract instance created:', contract);
+                        console.log('Available functions:', Object.keys(contract.functions));
+
+                        let tx;
+                        if (document.getElementById('advancedParams').classList.contains('visible')) {
+                            // Advanced parameters
+                            const groupInitWeight = document.getElementById('groupInitWeight').value;
+                            const groupFinalWeight = document.getElementById('groupFinalWeight').value;
+                            const swapFee = document.getElementById('swapFee').value;
+                            const updateWeightDuration = document.getElementById('updateWeightDuration').value;
+
+                            console.log('Calling createLBPStarter with advanced parameters...');
+                            tx = await contract['createLBPStarter(address,address,uint256,uint256,uint256,uint256,uint256,uint256)'](
+                                groupAddress,
+                                assetAddress,
+                                ethers.utils.parseEther(groupAmount),
+                                ethers.utils.parseEther(assetAmount),
+                                groupInitWeight,
+                                groupFinalWeight,
+                                swapFee,
+                                updateWeightDuration
+                            );
+                        } else {
+                            // Simple parameters
+                            console.log('Calling createLBPStarter with simple parameters...');
+                            tx = await contract['createLBPStarter(address,address,uint256,uint256)'](
+                                groupAddress,
+                                assetAddress,
+                                ethers.utils.parseEther(groupAmount),
+                                ethers.utils.parseEther(assetAmount)
+                            );
+                        }
+
+                        status.textContent = 'Transaction sent! Waiting for confirmation...';
+                        status.className = 'status success';
+
+                        const receipt = await tx.wait();
+                        
+                        // Find the LBPStarterCreated event
+                        const event = receipt.events.find(e => e.event === 'LBPStarterCreated');
+                        if (event) {
+                            const lbpStarterAddress = event.args.lbpStarter;
+                            status.textContent = `LBP Starter created successfully! Address: ${lbpStarterAddress}`;
+                            status.className = 'status success';
+                            await showNewStarterStatus(lbpStarterAddress);
+                        } else {
+                            status.textContent = 'Transaction successful but no LBPStarterCreated event found';
+                        }
+                    } catch (error) {
+                        status.textContent = `Error: ${error.message}`;
+                        status.className = 'status error';
+                    }
+                });
+            });
+        </script>
+    </body>
+</html> 
