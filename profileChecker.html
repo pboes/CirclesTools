@@ -407,7 +407,21 @@
                         summaryHtml += `<div class="info"><strong>[V2] Total Supply:</strong> ${ethers.utils.formatUnits(v2Data.totalSupply, 18)}</div>`;
                     }
                     summaryHtml += `<div class="info"><strong>ERC20 (static):</strong> ${mainERC20 && mainERC20 !== ethers.constants.AddressZero ? mainERC20 : 'N/A'}</div>`;
-                    summaryHtml += `<div class="info"><strong>[V2] Trusted Connections Count:</strong> ${trustedAddressesData.length}</div>`;
+                    
+                    // Filter out expired trusts for the count
+                    const indefiniteValBN = ethers.BigNumber.from("79228162514264337593543950335");
+                    const nowMs = Date.now();
+
+                    const activeTrustedAddresses = trustedAddressesData.filter(trust => {
+                        const expiryBN = ethers.BigNumber.from(trust.expiry);
+                        if (expiryBN.eq(indefiniteValBN)) {
+                            return true; // Indefinite trusts are always active
+                        }
+                        const expiryMs = Number(trust.expiry) * 1000;
+                        return expiryMs >= nowMs; // Active if expiry is in the future or now
+                    });
+
+                    summaryHtml += `<div class="info"><strong>[V2] Trusted Connections Count:</strong> ${activeTrustedAddresses.length}</div>`;
                     resultDiv.innerHTML = summaryHtml;
 
                     // Async update main user name and price
@@ -415,7 +429,7 @@
                     getPrice(mainERC20).then(price => { document.getElementById('main-user-price').textContent = price; });
 
                     // 5) Display trusted addresses table
-                    if (trustedAddressesData.length > 0) {
+                    if (activeTrustedAddresses.length > 0) {
                         const table = document.createElement("table");
                         const thead = document.createElement("thead");
                         const headerRow = document.createElement("tr");
@@ -429,8 +443,8 @@
                         table.appendChild(thead);
 
                         const tbody = document.createElement("tbody");
-                        for (let i = 0; i < trustedAddressesData.length; i++) {
-                            const addrData = trustedAddressesData[i];
+                        for (let i = 0; i < activeTrustedAddresses.length; i++) {
+                            const addrData = activeTrustedAddresses[i];
                             const row = document.createElement("tr");
                             const trustedAddr = addrData.trustedAddress;
                             const trustedErc20 = erc20Map[trustedAddr.toLowerCase()]?.demurragedERC20;
@@ -491,8 +505,8 @@
 
                             // Expiry (use expiry from next row, or N/A for last row)
                             let expiryValue;
-                            if (i < trustedAddressesData.length - 1) {
-                                expiryValue = trustedAddressesData[i + 1].expiry;
+                            if (i < activeTrustedAddresses.length - 1) {
+                                expiryValue = activeTrustedAddresses[i + 1].expiry;
                             } else {
                                 expiryValue = 0; // Last row gets N/A
                             }
@@ -595,4 +609,4 @@
             });
         </script>
     </body>
-</html> 
+</html>
