@@ -173,6 +173,9 @@
         <input type="text" id="lotteryAddress" placeholder="0x..." style="font-size:0.98em;" />
       </div>
       <button class="button" id="loadLotteryBtn" style="font-size:0.98em;padding:8px 18px;">Load Lottery</button>
+      <div style="margin-top:16px;text-align:center;">
+        <a href="lottery.html" style="color:#4A90E2;font-weight:bold;font-size:1.05em;text-decoration:none;">Start your own lottery</a>
+      </div>
     </div>
     <button id="showAdvancedBtn" style="background:none;border:none;color:#4A90E2;font-size:0.95em;cursor:pointer;margin-bottom:8px;display:block;">Switch/Advanced...</button>
     <div id="lotterySection" style="display:none;">
@@ -231,6 +234,7 @@
     let currentLotteryAddress = null;
     let ticketBoughtListener = null;
     let lastParticipantCount = 0;
+    const profileCache = {};
 
     // --- URL param helper ---
     function getParam(name) {
@@ -497,27 +501,50 @@
       ticketTokenDecimals = 18;
       ticketTokenSymbol = 'CRC';
       ticketPriceHuman = ethers.utils.formatEther(ticketPrice);
-      // Get participants and names
-      participants = [];
-      let participantNames = [];
-      for (let i = 0; i < partCount; i++) {
+      // Render main details immediately with a placeholder for participants
+      renderLotteryDetails(
+        name, startTime, endTime, ticketPriceHuman, prizeAmount, prizeTokenSymbol, isCancelled, isDrawn, winner, null, null, [], [], [], totalTickets, currentBalance.gte(prizeAmount), currentBalance
+      );
+      // Show placeholder for participants
+      const partDiv = document.querySelector('.participants-list');
+      if (partDiv) partDiv.innerHTML = `<b>Participants:</b><ul style='list-style:none;padding-left:0;margin-top:8px;'><li>Loading participants...</li></ul>`;
+
+      // Only render and fetch participants if partCount > 0
+      if (partCount > 0) {
+        // Now load participant addresses in parallel
+        let participants = [];
         try {
-          const addr = await lottery.participants(i);
-          participants.push(addr);
-        } catch { break; }
+          const participantPromises = [];
+          for (let i = 0; i < partCount; i++) {
+            participantPromises.push(lottery.participants(i));
+          }
+          participants = await Promise.all(participantPromises);
+          console.log('Fetched participants:', participants);
+        } catch (e) {
+          console.error('Error fetching participants:', e);
+        }
+        // Render participants as addresses only
+        const partDiv = document.querySelector('.participants-list');
+        if (partDiv) partDiv.innerHTML = `<b>Participants:</b><ul style='list-style:none;padding-left:0;margin-top:8px;'>` + participants.map(p => `<li>${p}</li>`).join('') + `</ul>`;
+        // Fetch profiles in background and update
+        const allAddresses = [...participants];
+        if (winner && winner !== ethers.constants.AddressZero && !allAddresses.includes(winner)) allAddresses.push(winner);
+        const profilesMap = await getProfilesBatchCached(allAddresses);
+        const participantNames = participants.map(addr => profilesMap[addr.toLowerCase()]?.name || null);
+        const participantAvatars = participants.map(addr => getAvatarUrl(profilesMap[addr.toLowerCase()]));
+        let winnerName = winner && winner !== ethers.constants.AddressZero ? (profilesMap[winner.toLowerCase()]?.name || null) : null;
+        let winnerAvatar = winner && winner !== ethers.constants.AddressZero ? getAvatarUrl(profilesMap[winner.toLowerCase()]) : null;
+        if (!winnerAvatar) winnerAvatar = 'https://ui-avatars.com/api/?name=Circles';
+        // Re-render full lottery details with all data
+        renderLotteryDetails(
+          name, startTime, endTime, ticketPriceHuman, prizeAmount, prizeTokenSymbol, isCancelled, isDrawn, winner, winnerName, winnerAvatar, participants, participantNames, participantAvatars, totalTickets, currentBalance.gte(prizeAmount), currentBalance
+        );
+      } else {
+        // No participants, clear the section
+        const partDiv = document.querySelector('.participants-list');
+        if (partDiv) partDiv.innerHTML = '';
       }
-      // Batch fetch profiles for all participants and winner
-      const allAddresses = [...participants];
-      if (winner && winner !== ethers.constants.AddressZero && !allAddresses.includes(winner)) allAddresses.push(winner);
-      const profilesMap = await getProfilesBatch(allAddresses);
-      participantNames = participants.map(addr => profilesMap[addr.toLowerCase()]?.name || null);
-      const participantAvatars = participants.map(addr => getAvatarUrl(profilesMap[addr.toLowerCase()]));
-      let winnerName = winner && winner !== ethers.constants.AddressZero ? (profilesMap[winner.toLowerCase()]?.name || null) : null;
-      let winnerAvatar = winner && winner !== ethers.constants.AddressZero ? getAvatarUrl(profilesMap[winner.toLowerCase()]) : null;
-      // Is funded?
-      const isFunded = currentBalance.gte(prizeAmount);
-      // Render
-      renderLotteryDetails(name, startTime, endTime, ticketPriceHuman, prizeAmount, prizeTokenSymbol, isCancelled, isDrawn, winner, winnerName, winnerAvatar, participants, participantNames, participantAvatars, totalTickets, isFunded, currentBalance);
+
       // Detect new participant (only on event, not on page load)
       if (isEvent && partCount > lastParticipantCount) {
         // Show notification with the latest participant's name
@@ -527,6 +554,7 @@
         showParticipantNotification(newName);
       }
       lastParticipantCount = partCount;
+      console.log('Participant count from contract:', partCount);
       showSpinner(false);
     }
 
@@ -556,13 +584,15 @@
       html += `<p><b>Ticket Price:</b> <span style='color:#27ae60;'>${price} CRC</span></p>`;
       html += `<p><b>Prize:</b> <span style='color:#f39c12;'>${ethers.utils.formatUnits(prize, prizeTokenDecimals)} ${prizeSymbol}</span></p>`;
       html += `<p><b>Total Tickets Sold:</b> ${totalTickets}</p>`;
-      html += `<p><b>Participants:</b> ${participants.length}</p>`;
+      if (status === 'ACTIVE' && now < end) {
+        html += `<div id='countdown-timer' style='margin:12px 0 8px 0; font-size:1.12em; color:#2980b9;'><b>Loading time left...</b></div>`;
+      }
       if (status === 'ACTIVE' && !isFunded) {
         html += `<div style='margin:16px 0 8px 0; font-size:1.08em; color:#e67e22;'><b>⚠️ This lottery is not yet funded.<br>Prize will be available once funded.<br>Current balance: ${ethers.utils.formatUnits(currentBalance, prizeTokenDecimals)} ${prizeSymbol}</b></div>`;
       }
       // Engaging call-to-action
       if (status === 'ACTIVE' && isFunded) {
-        const metriUrl = `https://app.metri.xyz/transfer/${lottery.address}/crc/${price}`;
+        const metriUrl = `https://app.metri.xyz/transfer/${lottery.address}/crc/${ticketPriceHuman}`;
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(lottery.address)}`;
         html += `<div style='margin:20px 0 8px 0; padding:18px 12px; background:#eafaf1; border-radius:10px; text-align:center;'>
           <div style='font-size:1.15em; color:#2980b9; margin-bottom:10px;'><b>Want to win <span style='color:#f39c12;'>${ethers.utils.formatUnits(prize, prizeTokenDecimals)} ${prizeSymbol}</span>?</b></div>
@@ -579,6 +609,21 @@
         html += `<div style='margin:16px 0 8px 0; font-size:1.08em; color:#888;'><b>Waiting for funding... You can't join until the prize is funded.</b></div>`;
       } else if (status === 'DRAWN') {
         html += `<div style='margin:16px 0 8px 0; font-size:1.2em; color:#27ae60; text-align:center;'><b>🎉 The lottery is over! Congratulations to our winner:</b></div>`;
+      } else if (status === 'ENDED' && !drawn && !cancelled && participants && participants.length > 0) {
+        const metriUrl = `https://app.metri.xyz/transfer/${lottery.address}/crc/${ticketPriceHuman}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(lottery.address)}`;
+        html += `<div style='margin:20px 0 8px 0; padding:18px 12px; background:#eafaf1; border-radius:10px; text-align:center;'>
+          <div style='font-size:1.15em; color:#e67e22; margin-bottom:10px;'><b>This lottery is over, but the winner has not been drawn yet.</b></div>
+          <div style='font-size:1.08em; color:#2980b9; margin-bottom:10px;'><b>Send ${ticketPriceHuman} CRC to trigger the drawing.</b></div>
+          <a href='${metriUrl}' target='_blank' style='display:inline-block;margin:10px 0 12px 0;padding:12px 28px;background:linear-gradient(90deg,#4A90E2 0%,#50E3C2 100%);color:white;font-weight:bold;font-size:1.1em;border-radius:6px;text-decoration:none;box-shadow:0 2px 8px rgba(80,227,194,0.08);'>
+            Trigger Drawing via Metri
+          </a>
+          <div style='margin:14px 0 0 0;'>
+            <img src='${qrUrl}' alt='QR code' style='display:block;margin:0 auto 6px auto;border-radius:8px;border:1.5px solid #27ae60;background:#fff;' />
+            <div style='font-size:0.98em;color:#555;'>Or scan &amp; send <b style='color:#27ae60;'>${ticketPriceHuman} CRC</b> to this lottery address from your mobile wallet:</div>
+            <div style='font-family:monospace;font-size:0.93em;color:#888;word-break:break-all;margin-top:2px;'>${lottery.address}</div>
+          </div>
+        </div>`;
       } else if (status === 'ENDED' || status === 'CANCELLED') {
         html += `<div style='margin:16px 0 8px 0; font-size:1.08em; color:#888;'><b>This lottery is over. Come back soon for the next one!</b></div>`;
       }
@@ -595,10 +640,11 @@
         </div>`;
       }
       // Participants
-      if (participants.length > 0) {
-        html += `<div class=\"participants-list\" style='margin-top:18px;'><b>Participants:</b><ul style='list-style:none;padding-left:0;margin-top:8px;'>` + participants.map((p, i) => {
-          const displayName = participantNames[i] || p;
-          return `<li style='display:flex;align-items:center;gap:8px;margin-bottom:6px;'><img src='${participantAvatars[i]}' alt='avatar' style='width:28px;height:28px;border-radius:50%;object-fit:cover;border:1.5px solid #ccc;'/><span style='font-size:1em;'>${displayName}</span></li>`;
+      if (participants && participants.length > 0) {
+        html += `<div class="participants-list" style='margin-top:18px;'><b>Participants:</b><ul style='list-style:none;padding-left:0;margin-top:8px;'>` + participants.map((p, i) => {
+          const displayName = participantNames && participantNames[i] ? participantNames[i] : (p.slice(0, 6) + '...' + p.slice(-4));
+          const avatar = participantAvatars && participantAvatars[i] ? participantAvatars[i] : 'https://ui-avatars.com/api/?name=Circles';
+          return `<li style='display:flex;align-items:center;gap:8px;margin-bottom:6px;'><img src='${avatar}' alt='avatar' style='width:28px;height:28px;border-radius:50%;object-fit:cover;border:1.5px solid #ccc;'/><a href='https://app.metri.xyz/${p}' target='_blank' style='text-decoration:none;color:#4A90E2;'>@${displayName}</a></li>`;
         }).join('') + `</ul></div>`;
       }
       const lotteryDetails = document.getElementById('lotteryDetails');
@@ -606,6 +652,55 @@
       // Hide buy button (no wallet interaction in this version)
       const buyBtn = document.getElementById('buyTicketBtn');
       if (buyBtn) buyBtn.style.display = 'none';
+
+      // After setting lotteryDetails.innerHTML = html;
+      // Add this code to start the countdown if active
+      if (status === 'ACTIVE' && now < end) {
+        const timerDiv = document.getElementById('countdown-timer');
+        function updateCountdown() {
+          const nowSec = Math.floor(Date.now() / 1000);
+          let diff = end - nowSec;
+          if (diff < 0) diff = 0;
+          const m = Math.floor(diff / 60);
+          const s = diff % 60;
+          timerDiv.innerHTML = `<b>${m}m ${s < 10 ? '0' : ''}${s}s until drawing</b>`;
+          if (diff > 0) setTimeout(updateCountdown, 1000);
+          else timerDiv.innerHTML = `<b>Lottery ended!</b>`;
+        }
+        updateCountdown();
+      }
+
+      // For the End label, if status is ACTIVE, show 'in X minutes' instead of a date:
+      let endLabel = '';
+      if (status === 'ACTIVE' && now < end) {
+        const diff = end - now;
+        if (diff < 60) endLabel = `in ${diff} seconds`;
+        else if (diff < 3600) endLabel = `in ${Math.floor(diff/60)} minutes`;
+        else if (diff < 86400) endLabel = `in ${Math.floor(diff/3600)} hours`;
+        else endLabel = `in ${Math.floor(diff/86400)} days`;
+      } else {
+        endLabel = new Date(end * 1000).toLocaleString();
+      }
+      // Replace the End line:
+      html += `<b>End:</b> ${endLabel}<br/>`;
+    }
+
+    // Add a cached version of getProfilesBatch
+    async function getProfilesBatchCached(addresses) {
+      if (!addresses || addresses.length === 0) return {};
+      const uncached = addresses.filter(a => !profileCache[a.toLowerCase()]);
+      let newProfiles = {};
+      if (uncached.length > 0) {
+        newProfiles = await getProfilesBatch(uncached);
+        Object.assign(profileCache, newProfiles);
+      }
+      // Merge cached and new
+      const result = {};
+      addresses.forEach(a => {
+        const key = a.toLowerCase();
+        if (profileCache[key]) result[key] = profileCache[key];
+      });
+      return result;
     }
 
     window.addEventListener('beforeunload', () => {

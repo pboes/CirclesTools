@@ -141,7 +141,7 @@
       </div>
       
       <div id="defaultTab" class="tab-content active">
-        <button id="createLottery" onclick="createDefaultLottery()">Create Default Lottery</button>
+        <button id="createLottery" onclick="createDefaultLottery()">Create Test Lottery</button>
       </div>
       
       <div id="customTab" class="tab-content">
@@ -404,6 +404,8 @@
               endCountdownHtml = endDate.toLocaleString();
             }
 
+            const metriUrl = `https://app.metri.xyz/transfer/${address}`;
+
             card.innerHTML = `
               <h3><a href="lottery-participate.html?address=${address}" style="color:#4A90E2;text-decoration:underline;">${name}</a></h3>
               <p>Status: <span class="status ${status.toLowerCase()}">${status}</span></p>
@@ -415,11 +417,11 @@
               <p>Ticket Price: ${ethers.utils.formatEther(ticketPrice)} CRC</p>
               <p>Prize: ${ethers.utils.formatUnits(prizeAmount, tokenDecimals)} ${tokenSymbol}</p>
               <p>Current Balance: ${ethers.utils.formatUnits(currentBalance, tokenDecimals)} ${tokenSymbol}</p>
-              ${status === 'ACTIVE' && !isFunded ? `<div style="color:#FFA500;"><b>⚠️ Not yet funded</b></div>` : ''}
+              ${status === 'UNFUNDED' ? `<div style='margin:12px 0 8px 0; font-size:1.08em; color:#e67e22;'><b>⚠️ This lottery is not yet funded.<br>To fund, send ${ethers.utils.formatUnits(prizeAmount, tokenDecimals)} ${tokenSymbol} to <span style='font-family:monospace;'>${address}</span> (lottery address).</b></div>` : ''}
               <p>Total Tickets Sold: ${totalTicketsSold}</p>
               ${isDrawn ? `<p><b>Winner:</b> <span id="winner-${address}">${winner}</span></p>` : ''}
               ${requireTrustedBy !== ethers.constants.AddressZero ? `<p>Requires Trust From: ${requireTrustedBy}</p>` : ''}
-              <p>Metri Link: <a href="https://app.metri.xyz/transfer/${address}" target="_blank">Send CRC to Lottery</a></p>
+              <p>Metri Link: <a href='${metriUrl}' target='_blank' style='color:#4A90E2;font-weight:bold;'>Fund Lottery from Metri</a></p>
               <div class="button-container">
                 ${status === 'ACTIVE' ? `
                   <button onclick="buyTicket('${address}')">Buy Ticket</button>
@@ -454,7 +456,7 @@
                   // Fetch profile names in parallel
                   const names = await Promise.all(participants.map(addr => getProfileName(addr)));
                   document.getElementById(`participants-${address}`).innerHTML =
-                    `<b>Participants:</b><ul style='margin:4px 0 0 16px;'>${participants.map((p, i) => `<li>${names[i] ? names[i] + ' (' + p + ')' : p}</li>`).join('')}</ul>`;
+                    `<b>Participants:</b><ul style='margin:4px 0 0 16px;'>${participants.map((p, i) => `<li><a href='https://app.metri.xyz/${p}' target='_blank' style='text-decoration:none;color:#4A90E2;'>@${names[i] ? names[i] : p.slice(0, 6) + '...' + p.slice(-4)}</a> (${p})</li>`).join('')}</ul>`;
                 }
               } catch {}
             })();
