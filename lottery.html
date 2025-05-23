@@ -197,6 +197,11 @@
             <span id="prizeAmountUnit"></span>
           </div>
           
+          <div class="form-group">
+            <label for="sponsor">Sponsor Address (optional):</label>
+            <input type="text" id="sponsor" placeholder="Enter sponsor address or leave empty">
+          </div>
+          
           <button onclick="createCustomLottery()">Create Custom Lottery</button>
         </div>
       </div>
@@ -214,12 +219,12 @@
         }
       });
 
-      const FACTORY_ADDRESS = '0x61F794483C2EEB7AEAADcc06e8629A9807ab6727';
+      const FACTORY_ADDRESS = '0x4B14679899A7AF92D947386Cb45D686C748BcA55';
       const FACTORY_ABI = [
         "function allDeployments() view returns (address[])",
         "function createLotteryDefault() returns (address)",
         "function transferLotteryOwnership(address lottery, address newOwner) external",
-        "function createLottery(string _lotteryName, address _trustedAddress, uint256 _startTime, uint256 _endTime, uint256 _ticketPrice, address _requireTrustedBy, address _prizeToken, uint256 _prizeAmount) returns (address)"
+        "function createLottery(string _lotteryName, address _trustedAddress, uint256 _startTime, uint256 _endTime, uint256 _ticketPrice, address _requireTrustedBy, address _prizeToken, uint256 _prizeAmount, address _sponsor) returns (address)"
       ];
 
       // Remove the static TRUSTED_ADDRESSES and instead load dynamically
@@ -410,8 +415,8 @@
               <p>Ticket Price: ${ethers.utils.formatEther(ticketPrice)} CRC</p>
               <p>Prize: ${ethers.utils.formatUnits(prizeAmount, tokenDecimals)} ${tokenSymbol}</p>
               <p>Current Balance: ${ethers.utils.formatUnits(currentBalance, tokenDecimals)} ${tokenSymbol}</p>
+              ${status === 'ACTIVE' && !isFunded ? `<div style="color:#FFA500;"><b>⚠️ Not yet funded</b></div>` : ''}
               <p>Total Tickets Sold: ${totalTicketsSold}</p>
-              <p>Participants: ${participantCount}</p>
               ${isDrawn ? `<p><b>Winner:</b> <span id="winner-${address}">${winner}</span></p>` : ''}
               ${requireTrustedBy !== ethers.constants.AddressZero ? `<p>Requires Trust From: ${requireTrustedBy}</p>` : ''}
               <p>Metri Link: <a href="https://app.metri.xyz/transfer/${address}" target="_blank">Send CRC to Lottery</a></p>
@@ -616,6 +621,7 @@
           const requireTrustedBy = document.getElementById('requireTrustedBy').value;
           const prizeToken = document.getElementById('prizeToken').value;
           const prizeAmountHuman = document.getElementById('prizeAmount').value;
+          const sponsor = document.getElementById('sponsor').value;
 
           // Validate inputs
           if (!name) throw new Error('Lottery name is required');
@@ -647,7 +653,8 @@
             ticketPriceWei,
             requireTrustedBy || ethers.constants.AddressZero,
             prizeToken,
-            prizeAmount
+            prizeAmount,
+            sponsor || ethers.constants.AddressZero
           );
 
           await tx.wait();
@@ -663,6 +670,7 @@
           document.getElementById('requireTrustedBy').value = '';
           document.getElementById('prizeToken').value = '0x2a22f9c3b484c3629090FeED35F17Ff8F88f76F0';
           document.getElementById('prizeAmount').value = '1';
+          document.getElementById('sponsor').value = '';
           
           showTab('default');
         } catch (err) {

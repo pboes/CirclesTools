@@ -193,7 +193,7 @@
     // --- Config ---
     const GNOSIS_RPC = "https://rpc.gnosis.gateway.fm";
     const CIRCLES_PROFILE_RPC = "https://rpc.aboutcircles.com/profiles/search?address=";
-    const FACTORY_ADDRESS = '0x61F794483C2EEB7AEAADcc06e8629A9807ab6727';
+    const FACTORY_ADDRESS = '0x4B14679899A7AF92D947386Cb45D686C748BcA55';
     const FACTORY_ABI = ["function allDeployments() view returns (address[])"];
     const LOTTERY_ABI = [
       "function lotteryName() view returns (string)",
@@ -557,7 +557,7 @@
       html += `<p><b>Prize:</b> <span style='color:#f39c12;'>${ethers.utils.formatUnits(prize, prizeTokenDecimals)} ${prizeSymbol}</span></p>`;
       html += `<p><b>Total Tickets Sold:</b> ${totalTickets}</p>`;
       html += `<p><b>Participants:</b> ${participants.length}</p>`;
-      if (!isFunded) {
+      if (status === 'ACTIVE' && !isFunded) {
         html += `<div style='margin:16px 0 8px 0; font-size:1.08em; color:#e67e22;'><b>⚠️ This lottery is not yet funded.<br>Prize will be available once funded.<br>Current balance: ${ethers.utils.formatUnits(currentBalance, prizeTokenDecimals)} ${prizeSymbol}</b></div>`;
       }
       // Engaging call-to-action
