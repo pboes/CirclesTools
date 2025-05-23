@@ -136,8 +136,8 @@
     </div>
     <div id="appContent" style="display: none;">
       <div class="tabs">
-        <div class="tab active" onclick="showTab('default')">Default Lottery</div>
-        <div class="tab" onclick="showTab('custom')">Custom Lottery</div>
+        <div class="tab active" onclick="showTab('default')">Test Lottery</div>
+        <div class="tab" onclick="showTab('custom')">Set up Lottery</div>
       </div>
       
       <div id="defaultTab" class="tab-content active">
@@ -152,9 +152,10 @@
           </div>
           
           <div class="form-group">
-            <label for="trustedAddress">Accepted CRC:</label>
+            <label for="trustedAddress">Accepted CRC: <span title="What CRC needs to be used to buy a lottery ticket? This can be a group CRC or a personal CRC. As long as participants have a trust path to this CRC, they can buy a ticket. The sponsor will receive these CRC.">(i)</span></label>
             <select id="trustedAddressSelect" onchange="handleTrustedAddressChange()"></select>
             <input type="text" id="trustedAddress" placeholder="Enter accepted CRC address" style="display: none;">
+            <div style="color:#666;font-size:0.95em;margin-top:2px;">This is the CRC that must be used to buy a ticket. It can be a group or personal CRC. The sponsor will receive these CRC.</div>
           </div>
           
           <div class="form-group">
@@ -177,7 +178,7 @@
           
           <div class="form-group">
             <label for="ticketPrice">Ticket Price (in CRC):</label>
-            <input type="number" id="ticketPrice" step="0.1" min="0.1" value="0.1">
+            <input type="number" id="ticketPrice" step="0.1" min="0.1" value="10">
           </div>
           
           <div class="form-group">
@@ -185,21 +186,32 @@
             <input type="text" id="requireTrustedBy" placeholder="Enter address or leave empty">
           </div>
           
+          <div style="color:#666;font-size:0.95em;margin-top:2px;">If set, only users who are trusted by this address (group or person) can participate in the lottery.</div>
+          
           <div class="form-group">
-            <label for="prizeToken">Prize Token Address:</label>
-            <input type="text" id="prizeToken" value="0x2a22f9c3b484c3629090FeED35F17Ff8F88f76F0" oninput="updatePrizeTokenInfo()">
+            <label for="prizeToken">Prize Token Address: <span title="Prize will be sent to the winner's Circles account. Metri currently only supports USDC, EURe, and GBPe.">(i)</span></label>
+            <select id="prizeTokenSelect" onchange="handlePrizeTokenChange()">
+              <option value="0x420CA0f9B9b604cE0fd9C18EF134C705e5Fa3430">EURe (0x420CA0f9B9b604cE0fd9C18EF134C705e5Fa3430)</option>
+              <option value="0x2a22f9c3b484c3629090FeED35F17Ff8F88f76F0">USDC (0x2a22f9c3b484c3629090FeED35F17Ff8F88f76F0)</option>
+              <option value="0x9c58bacc331c9aa871afd802db6379a98e80cedb">GNO (0x9c58bacc331c9aa871afd802db6379a98e80cedb)</option>
+              <option value="custom">Other (custom address)</option>
+            </select>
+            <input type="text" id="prizeToken" value="0x2a22f9c3b484c3629090FeED35F17Ff8F88f76F0" oninput="updatePrizeTokenInfo()" style="display:none;">
             <div id="prizeTokenInfo" style="margin-top:4px; color:#666; font-size:0.95em;"></div>
+            <div style="color:#666;font-size:0.95em;margin-top:2px;">Prize will be sent to the winner's Circles account. Metri currently only supports USDC, EURe, and GBPe.</div>
           </div>
           
           <div class="form-group">
-            <label for="prizeAmount">Prize Amount:</label>
+            <label for="prizeAmount">Prize Amount: <span title="Number of tokens that get paid out. Someone must fund the new contract with this amount to activate the lottery.">(i)</span></label>
             <input type="number" id="prizeAmount" step="any" min="0" value="1">
             <span id="prizeAmountUnit"></span>
+            <div style="color:#666;font-size:0.95em;margin-top:2px;">Number of tokens to be paid out. The contract must be funded with this amount to activate the lottery.</div>
           </div>
           
           <div class="form-group">
-            <label for="sponsor">Sponsor Address (optional):</label>
+            <label for="sponsor">Sponsor Address (optional): <span title="Account that will receive CRC (e.g., your Circles account).">(i)</span></label>
             <input type="text" id="sponsor" placeholder="Enter sponsor address or leave empty">
+            <div style="color:#666;font-size:0.95em;margin-top:2px;">Account that will receive CRC (e.g., your Circles account).</div>
           </div>
           
           <button onclick="createCustomLottery()">Create Custom Lottery</button>
@@ -298,6 +310,9 @@
           
           // Load lotteries
           loadLotteries();
+
+          // Prefill the sponsor input with the connected account when wallet is connected
+          document.getElementById('sponsor').value = myAddress;
         } catch (err) {
           showError('Failed to connect wallet: ' + err.message);
         }
@@ -423,9 +438,6 @@
               ${requireTrustedBy !== ethers.constants.AddressZero ? `<p>Requires Trust From: ${requireTrustedBy}</p>` : ''}
               <p>Metri Link: <a href='${metriUrl}' target='_blank' style='color:#4A90E2;font-weight:bold;'>Fund Lottery from Metri</a></p>
               <div class="button-container">
-                ${status === 'ACTIVE' ? `
-                  <button onclick="buyTicket('${address}')">Buy Ticket</button>
-                ` : ''}
                 ${status === 'ENDED' && !isDrawn && participantCount > 0 ? `
                   <button onclick="drawWinner('${address}')">Draw Winner</button>
                 ` : ''}
@@ -668,7 +680,7 @@
           document.getElementById('startTime').value = '';
           document.getElementById('endTimeSelect').value = '900';
           document.getElementById('endTimeCustom').value = '';
-          document.getElementById('ticketPrice').value = '0.1';
+          document.getElementById('ticketPrice').value = '10';
           document.getElementById('requireTrustedBy').value = '';
           document.getElementById('prizeToken').value = '0x2a22f9c3b484c3629090FeED35F17Ff8F88f76F0';
           document.getElementById('prizeAmount').value = '1';
@@ -757,6 +769,11 @@
           customOption.value = 'custom';
           customOption.textContent = 'Custom Address';
           select.appendChild(customOption);
+
+          // After populating the trustedAddressSelect options, set its value to the CRC Backer address (lowercase):
+          const CRC_BACKER_ADDRESS = '0x1aca75e38263c79d9d4f10df0635cc6fcfe6f026';
+          const backerOption = Array.from(select.options).find(opt => opt.value.toLowerCase() === CRC_BACKER_ADDRESS);
+          if (backerOption) select.value = CRC_BACKER_ADDRESS;
         }
       });
 
@@ -798,6 +815,24 @@
         }
         return avatar;
       }
+
+      function handlePrizeTokenChange() {
+        const select = document.getElementById('prizeTokenSelect');
+        const input = document.getElementById('prizeToken');
+        if (select.value === 'custom') {
+          input.style.display = 'block';
+          input.value = '';
+          input.required = true;
+        } else {
+          input.style.display = 'none';
+          input.value = select.value;
+          input.required = false;
+          updatePrizeTokenInfo();
+        }
+      }
+      document.getElementById('prizeTokenSelect').addEventListener('change', handlePrizeTokenChange);
+      // On page load, set the default value
+      handlePrizeTokenChange();
     </script>
   </body>
 </html> 
