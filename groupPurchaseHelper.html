@@ -646,10 +646,11 @@
         <!-- Ethers.js UMD build -->
         <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
         <script>
+            // Define RPC URL as a constant
+            const RPC_URL = "https://rpc.aboutcircles.com";
+
             // Initialize ethers provider
-            const provider = new ethers.providers.JsonRpcProvider(
-                "https://rpc.aboutcircles.com",
-            );
+            const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
             // Token ABI for conversion functions
             const tokenAbi = [
@@ -1153,7 +1154,7 @@
                             using a Dex:
                             </div>
                             <div class="purchase-options-container" style="display: flex; gap: 10px; margin-top: 10px;">
-                                <button id="buyCowswapBtn" class="action-btn">
+                                <button class="buyCowswapBtn action-btn">
                                     <i class="fas fa-exchange-alt"></i> Buy on CowSwap
                                 </button>
                             </div>
@@ -1217,10 +1218,13 @@
                 groups.forEach((group) => {
                     const item = document.createElement("div");
                     item.className = "search-result-item";
-                    item.innerHTML = `
-                        <span class="search-result-name">${group.name}</span>
-                        <span class="search-result-address">${formatAddress(group.address)}</span>
-                    `;
+                    const nameSpan = document.createElement("span");
+                    nameSpan.className = "search-result-name";
+                    nameSpan.textContent = group.name;
+                    const addrSpan = document.createElement("span");
+                    addrSpan.className = "search-result-address";
+                    addrSpan.textContent = formatAddress(group.address);
+                    item.append(nameSpan, addrSpan);
                     item.addEventListener("click", () => {
                         selectGroup(group);
                         searchResults.style.display = "none";
@@ -1268,7 +1272,7 @@
                             <div class="token-name">${group.name}</div>
                             <div class="address-container">
                                 <span class="token-address">${formatAddress(group.address)}</span>
-                                <button class="copy-btn" title="Copy Address" onclick="copyToClipboard('${group.address}')">
+                                <button class="copy-btn" title="Copy Address" aria-label="Copy group address to clipboard" onclick="copyToClipboard('${group.address}')">
                                     <i class="fas fa-copy"></i>
                                 </button>
                             </div>
