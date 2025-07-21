@@ -172,20 +172,21 @@
                 </div>
 
                 <div class="note">
-                    <strong>Note:</strong> This converter uses a standard CRC
-                    token contract to perform conversions. The conversion rates
-                    are the same for all CRC tokens on a given day. Static CRC
-                    tokens maintain their purchasing power over time, while
-                    demurraged CRC tokens lose value gradually.
+                    <strong>Note:</strong> Static, also called inflationary, CRC
+                    tokens don't change their nominal value over time, while
+                    demurraged CRC tokens do. For a CRC that has been issued on
+                    some day <strong>d</strong>, its demurraged value on some
+                    later day is <strong>b**d</strong>, for a constant
+                    <strong>b</strong> that is
                 </div>
             </div>
         </div>
 
         <!-- Ethers.js UMD build -->
         <script
-          src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"
-          integrity="sha384-paste-generated-sha256"
-          crossorigin="anonymous"></script>
+            src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"
+            crossorigin="anonymous"
+        ></script>
         <script>
             // Contract data - hardcoded to use a standard CRC token
             const contractAddress =
