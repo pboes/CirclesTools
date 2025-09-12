@@ -1260,8 +1260,8 @@
                     const info = groupInfo[0];
 
                     // Update the group object with only what we need
-                    group.staticTokenAddress = info.staticERC20;
-                    group.demurragedTokenAddress = info.demurragedERC20;
+                    group.staticTokenAddress = info.demurragedERC20;
+                    group.demurragedTokenAddress = info.staticERC20;
                     group.baseMintHandler = info.baseMintHandler;
                     selectedGroup = group;
 
