@@ -1261,7 +1261,7 @@
 
                     // Update the group object with only what we need
                     group.staticTokenAddress = info.staticERC20;
-                    group.tokenAddress = info.demurragedERC20;
+                    group.demurragedTokenAddress = info.demurragedERC20;
                     group.baseMintHandler = info.baseMintHandler;
                     selectedGroup = group;
 
@@ -1455,7 +1455,7 @@
 
                 // Get the token contract
                 const tokenContract = new ethers.Contract(
-                    selectedGroup.tokenAddress,
+                    selectedGroup.demurragedTokenAddress,
                     tokenAbi,
                     provider,
                 );
