@@ -218,7 +218,89 @@
                         <div class="note">
                             This is the discounted price. Enter the amount of
                             CRC (in 18 decimals) that buys 1 GNO.
+                            <br /><br />
+                            <strong>Helpful Tools:</strong><br />
+                            •
+                            <a
+                                href="https://swap.cow.fi/#/100/swap/0x7147A7405fCFe5CFa30c6d5363f9f357a317d082/GNO"
+                                target="_blank"
+                                >Check CRC/GNO price on CowSwap</a
+                            ><br />
+                            •
+                            <a
+                                href="https://aboutcircles.github.io/CirclesTools/crcConverter.html"
+                                target="_blank"
+                                >CRC Converter</a
+                            >
+                            - Convert between CRC formats<br />
+                            <br />
+                            <strong>Price Calculator:</strong>
                         </div>
+
+                        <div
+                            style="
+                                background: #f8f9fa;
+                                padding: 15px;
+                                border-radius: 8px;
+                                margin: 10px 0;
+                            "
+                        >
+                            <div
+                                style="
+                                    display: grid;
+                                    grid-template-columns: 1fr 1fr 1fr;
+                                    gap: 10px;
+                                    align-items: end;
+                                "
+                            >
+                                <div>
+                                    <label
+                                        for="marketPrice"
+                                        style="font-size: 0.9em"
+                                        >Market Price (CRC per GNO):</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="marketPrice"
+                                        placeholder="e.g., 100"
+                                        step="0.01"
+                                        style="width: 100%"
+                                    />
+                                </div>
+                                <div>
+                                    <label
+                                        for="discountPercent"
+                                        style="font-size: 0.9em"
+                                        >Discount (%):</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="discountPercent"
+                                        placeholder="e.g., 20"
+                                        step="0.1"
+                                        style="width: 100%"
+                                    />
+                                </div>
+                                <div>
+                                    <button
+                                        type="button"
+                                        id="calculatePrice"
+                                        style="margin: 0; width: 100%"
+                                    >
+                                        Calculate
+                                    </button>
+                                </div>
+                            </div>
+                            <div
+                                id="calculatedPrice"
+                                style="
+                                    margin-top: 10px;
+                                    font-weight: 600;
+                                    color: #5c49e4;
+                                "
+                            ></div>
+                        </div>
+
                         <input
                             type="text"
                             id="tokenPrice"
@@ -303,7 +385,7 @@
                             <input
                                 type="number"
                                 id="backersWeight"
-                                value="10000"
+                                value="28000"
                                 step="1"
                             />
                         </div>
@@ -335,7 +417,7 @@
                             <input
                                 type="number"
                                 id="extendedBackersWeight"
-                                value="2800"
+                                value="10000"
                                 step="1"
                             />
                         </div>
@@ -354,6 +436,25 @@
                 </div>
 
                 <div id="weightsProgress" class="status"></div>
+                <div id="batchSelector" style="display: none">
+                    <h4>Select Batches to Process:</h4>
+                    <div id="batchList"></div>
+                    <div style="margin-top: 15px">
+                        <button type="button" id="selectAllBatches">
+                            Select All
+                        </button>
+                        <button type="button" id="deselectAllBatches">
+                            Deselect All
+                        </button>
+                        <button
+                            type="button"
+                            id="processSelectedBatches"
+                            disabled
+                        >
+                            Process Selected Batches
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Token Deposit Section -->
@@ -1252,7 +1353,228 @@
                 }
             }
 
-            // Set account weights in batches
+            // Global variables for batch processing
+            let currentBatchData = {
+                addresses: [],
+                weight: 0,
+                typeName: "",
+                batches: [],
+                selectedBatches: new Set(),
+            };
+
+            // Prepare batches for selection
+            function prepareBatchSelection(addresses, weight, typeName) {
+                const batchSize = parseInt(
+                    document.getElementById("batchSize").value,
+                );
+                const batches = [];
+
+                for (let i = 0; i < addresses.length; i += batchSize) {
+                    const batch = addresses.slice(i, i + batchSize);
+                    batches.push({
+                        id: Math.floor(i / batchSize) + 1,
+                        startIndex: i,
+                        endIndex: Math.min(i + batchSize, addresses.length),
+                        addresses: batch,
+                        count: batch.length,
+                        status: "pending", // pending, processing, completed, failed
+                    });
+                }
+
+                currentBatchData = {
+                    addresses,
+                    weight,
+                    typeName,
+                    batches,
+                    selectedBatches: new Set(),
+                };
+
+                displayBatchSelector(batches);
+            }
+
+            // Display batch selector UI
+            function displayBatchSelector(batches) {
+                const batchSelector = document.getElementById("batchSelector");
+                const batchList = document.getElementById("batchList");
+
+                batchList.innerHTML = batches
+                    .map(
+                        (batch) => `
+                    <div style="display: flex; align-items: center; padding: 8px; border: 1px solid #ddd; margin-bottom: 5px; border-radius: 4px;" id="batch-${batch.id}">
+                        <input type="checkbox" id="checkbox-${batch.id}" value="${batch.id}" style="margin-right: 10px;" onchange="toggleBatchSelection(${batch.id})">
+                        <label for="checkbox-${batch.id}" style="flex: 1; margin: 0;">
+                            <strong>Batch ${batch.id}</strong>: Addresses ${batch.startIndex + 1}-${batch.endIndex} (${batch.count} addresses)
+                        </label>
+                        <span id="status-${batch.id}" class="batch-status">Pending</span>
+                    </div>
+                `,
+                    )
+                    .join("");
+
+                batchSelector.style.display = "block";
+                updateProcessButton();
+            }
+
+            // Toggle batch selection
+            function toggleBatchSelection(batchId) {
+                const checkbox = document.getElementById(`checkbox-${batchId}`);
+                if (checkbox.checked) {
+                    currentBatchData.selectedBatches.add(batchId);
+                } else {
+                    currentBatchData.selectedBatches.delete(batchId);
+                }
+                updateProcessButton();
+            }
+
+            // Update process button state
+            function updateProcessButton() {
+                const processBtn = document.getElementById(
+                    "processSelectedBatches",
+                );
+                processBtn.disabled =
+                    currentBatchData.selectedBatches.size === 0;
+                processBtn.textContent = `Process Selected Batches (${currentBatchData.selectedBatches.size})`;
+            }
+
+            // Select/deselect all batches
+            function selectAllBatches() {
+                currentBatchData.batches.forEach((batch) => {
+                    const checkbox = document.getElementById(
+                        `checkbox-${batch.id}`,
+                    );
+                    if (batch.status === "pending") {
+                        checkbox.checked = true;
+                        currentBatchData.selectedBatches.add(batch.id);
+                    }
+                });
+                updateProcessButton();
+            }
+
+            function deselectAllBatches() {
+                currentBatchData.batches.forEach((batch) => {
+                    const checkbox = document.getElementById(
+                        `checkbox-${batch.id}`,
+                    );
+                    checkbox.checked = false;
+                });
+                currentBatchData.selectedBatches.clear();
+                updateProcessButton();
+            }
+
+            // Process selected batches
+            async function processSelectedBatches() {
+                const progressElement =
+                    document.getElementById("weightsProgress");
+                const selectedBatches = Array.from(
+                    currentBatchData.selectedBatches,
+                );
+
+                if (selectedBatches.length === 0) {
+                    progressElement.textContent = "No batches selected";
+                    progressElement.className = "status error";
+                    return;
+                }
+
+                try {
+                    const contractWithSigner = contract.connect(signer);
+                    let successfulBatches = 0;
+                    let totalSelected = selectedBatches.length;
+
+                    progressElement.innerHTML = `Processing ${totalSelected} selected batches for ${currentBatchData.typeName} addresses...`;
+                    progressElement.className = "status info";
+
+                    for (const batchId of selectedBatches) {
+                        const batch = currentBatchData.batches.find(
+                            (b) => b.id === batchId,
+                        );
+                        if (!batch || batch.status !== "pending") continue;
+
+                        try {
+                            // Update UI
+                            const statusElement = document.getElementById(
+                                `status-${batchId}`,
+                            );
+                            const checkboxElement = document.getElementById(
+                                `checkbox-${batchId}`,
+                            );
+
+                            statusElement.innerHTML =
+                                'Processing... <div class="loading" style="display: inline-block; width: 12px; height: 12px;"></div>';
+                            statusElement.className = "batch-status processing";
+                            checkboxElement.disabled = true;
+                            batch.status = "processing";
+
+                            progressElement.innerHTML = `Processing batch ${batchId}/${currentBatchData.batches.length} (${batch.count} addresses)... <div class="loading"></div>`;
+
+                            const weights = new Array(
+                                batch.addresses.length,
+                            ).fill(currentBatchData.weight);
+                            const tx =
+                                await contractWithSigner.setNextOfferAccountWeights(
+                                    batch.addresses,
+                                    weights,
+                                );
+
+                            progressElement.innerHTML = `Batch ${batchId} sent, waiting for confirmation... <div class="loading"></div>`;
+
+                            await tx.wait();
+
+                            // Mark as completed
+                            statusElement.textContent = "✓ Completed";
+                            statusElement.className = "batch-status completed";
+                            batch.status = "completed";
+                            successfulBatches++;
+                        } catch (batchError) {
+                            console.error(
+                                `Error in batch ${batchId}:`,
+                                batchError,
+                            );
+
+                            const statusElement = document.getElementById(
+                                `status-${batchId}`,
+                            );
+                            const checkboxElement = document.getElementById(
+                                `checkbox-${batchId}`,
+                            );
+
+                            statusElement.textContent = "❌ Failed";
+                            statusElement.className = "batch-status failed";
+                            checkboxElement.disabled = false;
+                            batch.status = "failed";
+
+                            progressElement.innerHTML = `❌ Error in batch ${batchId}: ${batchError.message}<br>You can retry failed batches by selecting them again.`;
+                            progressElement.className = "status error";
+                        }
+                    }
+
+                    if (successfulBatches === totalSelected) {
+                        progressElement.innerHTML = `✓ Successfully processed all ${successfulBatches} selected batches for ${currentBatchData.typeName} addresses!`;
+                        progressElement.className = "status success";
+                    } else {
+                        progressElement.innerHTML = `Completed ${successfulBatches}/${totalSelected} selected batches. You can retry failed batches.`;
+                        progressElement.className = "status info";
+                    }
+
+                    // Update selected batches (remove completed ones)
+                    currentBatchData.selectedBatches = new Set(
+                        Array.from(currentBatchData.selectedBatches).filter(
+                            (id) => {
+                                const batch = currentBatchData.batches.find(
+                                    (b) => b.id === id,
+                                );
+                                return batch && batch.status !== "completed";
+                            },
+                        ),
+                    );
+                    updateProcessButton();
+                } catch (error) {
+                    console.error("Error processing selected batches:", error);
+                    progressElement.textContent = `Error processing batches: ${error.message}`;
+                    progressElement.className = "status error";
+                }
+            }
+
+            // Legacy function for backwards compatibility - now shows batch selector
             async function setAccountWeights(
                 addresses,
                 weight,
@@ -1261,9 +1583,6 @@
             ) {
                 const progressElement =
                     document.getElementById(progressElementId);
-                const batchSize = parseInt(
-                    document.getElementById("batchSize").value,
-                );
 
                 if (!addresses.length) {
                     progressElement.textContent = "No addresses to process";
@@ -1271,54 +1590,9 @@
                     return;
                 }
 
-                try {
-                    const contractWithSigner = contract.connect(signer);
-                    const totalBatches = Math.ceil(
-                        addresses.length / batchSize,
-                    );
-                    let successfulBatches = 0;
-
-                    progressElement.innerHTML = `Setting weights for ${addresses.length} ${typeName} addresses in ${totalBatches} batches...`;
-                    progressElement.className = "status info";
-
-                    for (let i = 0; i < addresses.length; i += batchSize) {
-                        const batch = addresses.slice(i, i + batchSize);
-                        const weights = new Array(batch.length).fill(weight);
-                        const batchNumber = Math.floor(i / batchSize) + 1;
-
-                        try {
-                            progressElement.innerHTML = `Processing batch ${batchNumber}/${totalBatches} (${batch.length} addresses)... <div class="loading"></div>`;
-
-                            const tx =
-                                await contractWithSigner.setNextOfferAccountWeights(
-                                    batch,
-                                    weights,
-                                );
-
-                            progressElement.innerHTML = `Batch ${batchNumber}/${totalBatches} sent, waiting for confirmation... <div class="loading"></div>`;
-
-                            await tx.wait();
-                            successfulBatches++;
-
-                            progressElement.innerHTML = `✓ Completed batch ${batchNumber}/${totalBatches}. Processing ${successfulBatches}/${totalBatches} batches completed.`;
-                        } catch (batchError) {
-                            console.error(
-                                `Error in batch ${batchNumber}:`,
-                                batchError,
-                            );
-                            progressElement.innerHTML = `❌ Error in batch ${batchNumber}/${totalBatches}: ${batchError.message}<br>Completed: ${successfulBatches}/${totalBatches}`;
-                            progressElement.className = "status error";
-                            return;
-                        }
-                    }
-
-                    progressElement.innerHTML = `✓ Successfully set weights for all ${addresses.length} ${typeName} addresses in ${successfulBatches} batches!`;
-                    progressElement.className = "status success";
-                } catch (error) {
-                    console.error("Error setting account weights:", error);
-                    progressElement.textContent = `Error setting weights: ${error.message}`;
-                    progressElement.className = "status error";
-                }
+                prepareBatchSelection(addresses, weight, typeName);
+                progressElement.innerHTML = `Ready to process ${addresses.length} ${typeName} addresses. Select batches above to continue.`;
+                progressElement.className = "status info";
             }
 
             // Event listeners for buttons
@@ -1549,6 +1823,101 @@
                     withdrawBtn.disabled = false;
                 }
             }
+
+            // Add CSS for batch status
+            const style = document.createElement("style");
+            style.textContent = `
+                .batch-status {
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 0.8em;
+                    font-weight: 600;
+                    min-width: 80px;
+                    text-align: center;
+                }
+                .batch-status.pending {
+                    background-color: #f8f9fa;
+                    color: #6c757d;
+                }
+                .batch-status.processing {
+                    background-color: #fff3cd;
+                    color: #856404;
+                }
+                .batch-status.completed {
+                    background-color: #d4edda;
+                    color: #155724;
+                }
+                .batch-status.failed {
+                    background-color: #f8d7da;
+                    color: #721c24;
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Price calculator functionality
+            function calculateDiscountedPrice() {
+                const marketPrice = parseFloat(
+                    document.getElementById("marketPrice").value,
+                );
+                const discountPercent = parseFloat(
+                    document.getElementById("discountPercent").value,
+                );
+                const calculatedPriceDiv =
+                    document.getElementById("calculatedPrice");
+
+                if (!marketPrice || !discountPercent) {
+                    calculatedPriceDiv.textContent =
+                        "Please enter both market price and discount percentage";
+                    calculatedPriceDiv.style.color = "#dc3545";
+                    return;
+                }
+
+                if (
+                    marketPrice <= 0 ||
+                    discountPercent < 0 ||
+                    discountPercent > 100
+                ) {
+                    calculatedPriceDiv.textContent =
+                        "Please enter valid values (market price > 0, discount 0-100%)";
+                    calculatedPriceDiv.style.color = "#dc3545";
+                    return;
+                }
+
+                const discountedPrice =
+                    marketPrice * (1 - discountPercent / 100);
+                const priceInWei = ethers.utils.parseEther(
+                    discountedPrice.toString(),
+                );
+
+                calculatedPriceDiv.innerHTML = `
+                    <div>Discounted Price: ${discountedPrice.toFixed(4)} CRC per GNO</div>
+                    <div style="font-size: 0.9em; color: #666;">In 18 decimals: ${priceInWei.toString()}</div>
+                `;
+                calculatedPriceDiv.style.color = "#5c49e4";
+
+                // Auto-fill the token price input
+                document.getElementById("tokenPrice").value =
+                    priceInWei.toString();
+            }
+
+            // Global functions for batch selection (need to be global for onclick handlers)
+            window.toggleBatchSelection = toggleBatchSelection;
+
+            // Event listeners for price calculator
+            document
+                .getElementById("calculatePrice")
+                .addEventListener("click", calculateDiscountedPrice);
+
+            // Event listeners for batch selector buttons
+            document
+                .getElementById("selectAllBatches")
+                .addEventListener("click", selectAllBatches);
+            document
+                .getElementById("deselectAllBatches")
+                .addEventListener("click", deselectAllBatches);
+            document
+                .getElementById("processSelectedBatches")
+                .addEventListener("click", processSelectedBatches);
 
             // Event listeners for new buttons
             document
