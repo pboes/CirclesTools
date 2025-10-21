@@ -5,20 +5,20 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Token Distribution Checker</title>
         <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+            href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
             rel="stylesheet"
         />
         <style>
             /* --- Styling based on profileChecker.html --- */
             body {
                 margin: 0;
-                font-family: "Inter", Helvetica, Arial, sans-serif;
-                background: #ffffff;
-                color: #333;
+                font-family: "DM Sans", sans-serif;
+                background: #fff7f5;
+                color: #191568;
                 line-height: 1.3;
             }
             header {
-                background: #5c49e4;
+                background: #191568;
                 color: #fff;
                 padding: 20px;
                 text-align: center;
@@ -53,7 +53,7 @@
             #checkButton { /* Specific style for main button */
                 margin-top: 10px;
                 padding: 10px 20px;
-                background: #5c49e4;
+                background: #191568;
                 color: #fff;
                 border: none;
                 border-radius: 4px;
@@ -64,13 +64,13 @@
                 width: auto; /* Reset width */
             }
             #checkButton:hover {
-                background: #4A39CC;
+                background: #251b9f;
             }
             .icon-btn { /* General icon button style */
                 margin-top: 0;
                 padding: 6px;
-                background: #f4f4ff;
-                color: #5c49e4;
+                background: #ffede8;
+                color: #191568;
                 border: none;
                 border-radius: 50%;
                 cursor: pointer;
@@ -85,7 +85,7 @@
                 margin-right: 0;
             }
             .icon-btn:hover {
-                background: #e0e0fa;
+                background: #ffe3dc;
             }
             .icon-btn[title] {
                 position: relative;
@@ -118,7 +118,7 @@
                 font-size: 0.98rem;
             }
             .address-link {
-                color: #5c49e4;
+                color: #191568;
                 text-decoration: none;
                 font-weight: 500;
                 cursor: pointer;
@@ -135,7 +135,7 @@
                 border-radius: 8px;
                 overflow: hidden;
                 border: 1px solid #eee;
-                box-shadow: 0 2px 12px 0 rgba(92,73,228,0.07);
+                box-shadow: 0 2px 12px 0 rgba(25,21,104,0.07);
             }
             
             tbody tr {
@@ -159,7 +159,7 @@
                 text-overflow: ellipsis;
             }
             th {
-                background: #f9f9fc;
+                background: #e5e3fb;
                 font-weight: 600;
                 border-bottom: 1px solid #eee;
                 position: relative; /* Add position relative */
@@ -174,10 +174,10 @@
                 border-radius: 8px; /* May not work with collapse: separate */
             }
             tr:nth-child(even) {
-                background: #f6f6fb;
+                background: #fff7f5;
             }
             tr:hover td {
-                background: #f3f3f7;
+                background: #ffede8;
             }
             td {
                 border-bottom: 1px solid #eee;
@@ -205,7 +205,7 @@
             }
             .loader {
                 border: 4px solid #f3f3f3;
-                border-top: 4px solid #5c49e4;
+                border-top: 4px solid #191568;
                 border-radius: 50%;
                 width: 24px;
                 height: 24px;
@@ -237,7 +237,7 @@
                 margin-top: 0;
                 margin-bottom: 10px;
                 font-size: 1.1rem;
-                color: #5c49e4;
+                color: #191568;
             }
             .debug-data {
                 background: #fff;
@@ -253,7 +253,7 @@
             .verify-btn {
                 margin-top: 10px;
                 padding: 8px 16px;
-                background: #5c49e4;
+                background: #191568;
                 color: #fff;
                 border: none;
                 border-radius: 4px;
@@ -262,7 +262,7 @@
                 font-weight: 600;
             }
             .verify-btn:hover {
-                background: #4A39CC;
+                background: #251b9f;
             }
             
             /* Chart and Table Specific Styles */
@@ -290,15 +290,15 @@
             .pagination button {
                 margin: 0 5px;
                 padding: 5px 10px;
-                background: #f4f4ff;
-                color: #5c49e4;
+                background: #ffede8;
+                color: #191568;
                 border: none;
                 border-radius: 4px;
                 cursor: pointer;
             }
             
             .pagination button.active {
-                background: #5c49e4;
+                background: #191568;
                 color: #fff;
             }
             
@@ -308,7 +308,7 @@
             
             .chart-legend {
                 padding: 15px;
-                background: #f9f9fc;
+                background: #e5e3fb;
                 border-radius: 8px;
                 border: 1px solid #eee;
                 min-width: 200px; /* Minimum width for the legend */
@@ -621,7 +621,7 @@
             // Generate colors for the chart
             function generateChartColors(count) {
                 const baseColors = [
-                    '#5c49e4', '#4a39cc', '#7869e8', '#9589ec', '#b2a9f0',
+                    '#191568', '#4a39cc', '#7869e8', '#9589ec', '#b2a9f0',
                     '#3498db', '#2980b9', '#1abc9c', '#16a085', '#2ecc71',
                     '#27ae60', '#f1c40f', '#f39c12', '#e67e22', '#d35400'
                 ];
@@ -790,12 +790,12 @@
                     const copyBtn = document.createElement('button');
                     copyBtn.className = 'icon-btn';
                     copyBtn.title = 'Copy Address';
-                    copyBtn.innerHTML = `<svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="10" height="10" rx="2" stroke="#5c49e4" stroke-width="1.5"/><rect x="6" y="6" width="7" height="7" rx="1.5" stroke="#5c49e4" stroke-width="1.5"/></svg>`;
+                    copyBtn.innerHTML = `<svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="10" height="10" rx="2" stroke="#191568" stroke-width="1.5"/><rect x="6" y="6" width="7" height="7" rx="1.5" stroke="#191568" stroke-width="1.5"/></svg>`;
                     copyBtn.onclick = () => {
                         navigator.clipboard.writeText(holder.accountAddress);
-                        copyBtn.innerHTML = `<svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="10" height="10" rx="2" stroke="#5c49e4" stroke-width="1.5"/><path d="M6 9l2 2 4-4" stroke="#5c49e4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+                        copyBtn.innerHTML = `<svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="10" height="10" rx="2" stroke="#191568" stroke-width="1.5"/><path d="M6 9l2 2 4-4" stroke="#191568" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
                         setTimeout(() => { 
-                            copyBtn.innerHTML = `<svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="10" height="10" rx="2" stroke="#5c49e4" stroke-width="1.5"/><rect x="6" y="6" width="7" height="7" rx="1.5" stroke="#5c49e4" stroke-width="1.5"/></svg>`; 
+                            copyBtn.innerHTML = `<svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="10" height="10" rx="2" stroke="#191568" stroke-width="1.5"/><rect x="6" y="6" width="7" height="7" rx="1.5" stroke="#191568" stroke-width="1.5"/></svg>`; 
                         }, 1500);
                     };
                     addrMain.appendChild(copyBtn);
@@ -804,7 +804,7 @@
                     const profileBtn = document.createElement('button');
                     profileBtn.className = 'icon-btn';
                     profileBtn.title = 'Open Profile';
-                    profileBtn.innerHTML = `<svg width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="6.5" r="3.5" stroke="#5c49e4" stroke-width="1.5"/><path d="M2.5 15c0-2.485 2.91-4.5 6.5-4.5s6.5 2.015 6.5 4.5" stroke="#5c49e4" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+                    profileBtn.innerHTML = `<svg width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="6.5" r="3.5" stroke="#191568" stroke-width="1.5"/><path d="M2.5 15c0-2.485 2.91-4.5 6.5-4.5s6.5 2.015 6.5 4.5" stroke="#191568" stroke-width="1.5" stroke-linecap="round"/></svg>`;
                     profileBtn.onclick = (e) => {
                         e.preventDefault();
                         window.open(`profileChecker.html?address=${holder.accountAddress}`, '_blank');
@@ -844,7 +844,7 @@
                     const checkDistBtn = document.createElement('button');
                     checkDistBtn.className = 'icon-btn';
                     checkDistBtn.title = 'Check Token Distribution';
-                    checkDistBtn.innerHTML = `<svg width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="7" stroke="#5c49e4" stroke-width="1.5"/><path d="M6 9h6M9 6v6" stroke="#5c49e4" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+                    checkDistBtn.innerHTML = `<svg width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="7" stroke="#191568" stroke-width="1.5"/><path d="M6 9h6M9 6v6" stroke="#191568" stroke-width="1.5" stroke-linecap="round"/></svg>`;
                     checkDistBtn.onclick = (e) => {
                         e.preventDefault();
                         // Set the input value to this holder's address
