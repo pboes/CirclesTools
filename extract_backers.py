@@ -53,11 +53,11 @@ def main():
     base_dir = Path('.')
     
     # Input files
-    backers_json = base_dir / 'backers-raw-061120.json'
+    backers_json = base_dir / 'backers-raw-061125.json'
     extended_backers_json = base_dir / 'extendedBackers-raw-061125.json'
     
     # Output files
-    backers_csv = base_dir / 'backers_061120.csv'
+    backers_csv = base_dir / 'backers_061125.csv'
     extended_backers_csv = base_dir / 'extended_backers_061125.csv'
     
     print("Starting extraction of addresses from JSON files...")
