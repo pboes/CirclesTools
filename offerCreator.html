@@ -1276,7 +1276,7 @@
                     backersStatus.textContent = "Loading...";
                     loadBackersBtn.disabled = true;
 
-                    const response = await fetch("backers_061125.csv");
+                    const response = await fetch("backers_131125.csv");
                     if (!response.ok) {
                         throw new Error(
                             `Failed to load backers file: ${response.status}`,
@@ -1319,7 +1319,7 @@
                     extendedBackersStatus.textContent = "Loading...";
                     loadExtendedBackersBtn.disabled = true;
 
-                    const response = await fetch("extended_backers_061125.csv");
+                    const response = await fetch("extended_backers_131125.csv");
                     if (!response.ok) {
                         throw new Error(
                             `Failed to load extended backers file: ${response.status}`,
