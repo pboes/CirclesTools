@@ -326,6 +326,7 @@
                     </label>
                     <button id="startCameraBtn" onclick="startCamera()" style="display:none; padding:8px 12px; font-weight:600;">Start Camera</button>
                     <button id="stopCameraBtn" onclick="stopCamera()" style="display:none; padding:8px 12px; font-weight:600; background:#f0f0f0; color:#333;">Stop Camera</button>
+                    <button id="switchCameraBtn" onclick="switchCamera()" style="display:none; padding:8px 12px; font-weight:600; background:#fff; color:#333; border:1px solid #ddd;">Switch Camera</button>
                 </div>
                 <div id="qrCameraContainer" style="margin-top:10px; display:none; max-width:420px;">
                     <video id="qrVideo" autoplay playsinline style="width:100%; border-radius:8px; background:#000;"></video>
@@ -813,6 +814,7 @@ quality = Σ(targets_at_hop_h × decay_factor_h) / targets_reached
             let _scanning = false;
             let _barcodeDetector = null;
             let _scanAnim = null;
+            let _currentFacing = 'environment';
 
             function onToggleQr(enabled) {
                 const cameraContainer = document.getElementById('qrCameraContainer');
@@ -836,6 +838,7 @@ quality = Σ(targets_at_hop_h × decay_factor_h) / targets_reached
             async function startCamera() {
                 const startBtn = document.getElementById('startCameraBtn');
                 const stopBtn = document.getElementById('stopCameraBtn');
+                const switchBtn = document.getElementById('switchCameraBtn');
                 const status = document.getElementById('qrStatus');
                 const video = document.getElementById('qrVideo');
 
@@ -845,11 +848,14 @@ quality = Σ(targets_at_hop_h × decay_factor_h) / targets_reached
                 }
 
                 try {
-                    // Prefer rear camera when available (environment)
-                    _mediaStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: { ideal: 'environment' } },
+                    // Use the current facing mode preference
+                    const constraints = {
+                        video: { facingMode: { ideal: _currentFacing } },
                         audio: false
-                    });
+                    };
+
+                    // Try to obtain the media stream
+                    _mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
 
                     video.srcObject = _mediaStream;
                     await video.play();
@@ -870,7 +876,8 @@ quality = Σ(targets_at_hop_h × decay_factor_h) / targets_reached
                     // Update UI
                     startBtn.style.display = 'none';
                     stopBtn.style.display = 'inline-block';
-                    status.textContent = 'Camera started — looking for QR codes...';
+                    if (switchBtn) switchBtn.style.display = 'inline-block';
+                    status.textContent = 'Camera started (' + _currentFacing + ') — looking for QR codes...';
 
                     _scanning = true;
                     scanLoop();
@@ -884,6 +891,7 @@ quality = Σ(targets_at_hop_h × decay_factor_h) / targets_reached
             function stopCamera() {
                 const startBtn = document.getElementById('startCameraBtn');
                 const stopBtn = document.getElementById('stopCameraBtn');
+                const switchBtn = document.getElementById('switchCameraBtn');
                 const status = document.getElementById('qrStatus');
                 const video = document.getElementById('qrVideo');
 
@@ -906,7 +914,41 @@ quality = Σ(targets_at_hop_h × decay_factor_h) / targets_reached
 
                 startBtn.style.display = 'inline-block';
                 stopBtn.style.display = 'none';
+                if (switchBtn) switchBtn.style.display = 'none';
                 status.textContent = 'Camera stopped';
+            }
+
+            // Switch between 'environment' and 'user' facing cameras.
+            // Works by toggling the preferred facing mode and re-starting the stream.
+            async function switchCamera() {
+                const status = document.getElementById('qrStatus');
+                const startBtn = document.getElementById('startCameraBtn');
+                const stopBtn = document.getElementById('stopCameraBtn');
+                const switchBtn = document.getElementById('switchCameraBtn');
+
+                // Toggle preference
+                _currentFacing = (_currentFacing === 'environment') ? 'user' : 'environment';
+                status.textContent = 'Switching camera to ' + _currentFacing + '...';
+
+                // If the camera is running, restart it with the new facing
+                // Stop current stream first
+                if (_mediaStream) {
+                    _mediaStream.getTracks().forEach(t => t.stop());
+                    _mediaStream = null;
+                }
+
+                // Give UI a moment to update, then start camera again
+                try {
+                    // Re-use startCamera logic to request with new constraints
+                    await startCamera();
+                    if (switchBtn) switchBtn.textContent = 'Switch Camera';
+                } catch (err) {
+                    console.error('Error switching camera:', err);
+                    status.textContent = 'Could not switch camera: ' + (err.message || err);
+                    // Restore UI state
+                    if (startBtn) startBtn.style.display = 'inline-block';
+                    if (stopBtn) stopBtn.style.display = 'none';
+                }
             }
 
             async function scanLoop() {
