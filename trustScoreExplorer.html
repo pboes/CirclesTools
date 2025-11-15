@@ -297,6 +297,7 @@
                 text-decoration: underline;
             }
         </style>
+        <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
     </head>
     <body>
         <header>
@@ -318,6 +319,19 @@
                     placeholder="0x... or username"
                     value=""
                 />
+                <div style="margin-top:8px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                    <label style="display:flex; align-items:center; gap:8px; font-weight:600; cursor:pointer;">
+                        <input type="checkbox" id="enableQrToggle" onchange="onToggleQr(this.checked)" />
+                        Enable QR scanning
+                    </label>
+                    <button id="startCameraBtn" onclick="startCamera()" style="display:none; padding:8px 12px; font-weight:600;">Start Camera</button>
+                    <button id="stopCameraBtn" onclick="stopCamera()" style="display:none; padding:8px 12px; font-weight:600; background:#f0f0f0; color:#333;">Stop Camera</button>
+                </div>
+                <div id="qrCameraContainer" style="margin-top:10px; display:none; max-width:420px;">
+                    <video id="qrVideo" autoplay playsinline style="width:100%; border-radius:8px; background:#000;"></video>
+                    <canvas id="qrCanvas" style="display:none;"></canvas>
+                    <div id="qrStatus" style="font-size:0.9rem; color:#666; margin-top:6px;">Camera inactive</div>
+                </div>
                 <div id="searchSuggestions" style="display: none; margin-top: 5px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;"></div>
             </div>
 
@@ -792,6 +806,222 @@ quality = Σ(targets_at_hop_h × decay_factor_h) / targets_reached
                 if (event.target.classList.contains('modal')) {
                     event.target.style.display = 'none';
                 }
+            }
+
+            // QR scanning support using camera (uses BarcodeDetector when available)
+            let _mediaStream = null;
+            let _scanning = false;
+            let _barcodeDetector = null;
+            let _scanAnim = null;
+
+            function onToggleQr(enabled) {
+                const cameraContainer = document.getElementById('qrCameraContainer');
+                const startBtn = document.getElementById('startCameraBtn');
+                const stopBtn = document.getElementById('stopCameraBtn');
+                const status = document.getElementById('qrStatus');
+
+                if (enabled) {
+                    cameraContainer.style.display = 'block';
+                    startBtn.style.display = 'inline-block';
+                    status.textContent = 'QR scanning enabled. Tap "Start Camera" to begin.';
+                } else {
+                    cameraContainer.style.display = 'none';
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'none';
+                    status.textContent = 'Camera inactive';
+                    stopCamera();
+                }
+            }
+
+            async function startCamera() {
+                const startBtn = document.getElementById('startCameraBtn');
+                const stopBtn = document.getElementById('stopCameraBtn');
+                const status = document.getElementById('qrStatus');
+                const video = document.getElementById('qrVideo');
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    status.textContent = 'Camera API not available in this browser.';
+                    return;
+                }
+
+                try {
+                    // Prefer rear camera when available (environment)
+                    _mediaStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: 'environment' } },
+                        audio: false
+                    });
+
+                    video.srcObject = _mediaStream;
+                    await video.play();
+
+                    // Initialize BarcodeDetector if available
+                    if ('BarcodeDetector' in window) {
+                        try {
+                            _barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+                            console.log('BarcodeDetector initialized');
+                        } catch (err) {
+                            console.warn('BarcodeDetector initialization failed:', err);
+                            _barcodeDetector = null;
+                        }
+                    } else {
+                        _barcodeDetector = null;
+                    }
+
+                    // Update UI
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                    status.textContent = 'Camera started — looking for QR codes...';
+
+                    _scanning = true;
+                    scanLoop();
+                } catch (err) {
+                    console.error('Failed to start camera:', err);
+                    status.textContent = 'Could not start camera: ' + (err.message || err);
+                    stopCamera();
+                }
+            }
+
+            function stopCamera() {
+                const startBtn = document.getElementById('startCameraBtn');
+                const stopBtn = document.getElementById('stopCameraBtn');
+                const status = document.getElementById('qrStatus');
+                const video = document.getElementById('qrVideo');
+
+                _scanning = false;
+
+                if (_scanAnim) {
+                    cancelAnimationFrame(_scanAnim);
+                    _scanAnim = null;
+                }
+
+                if (_mediaStream) {
+                    _mediaStream.getTracks().forEach(t => t.stop());
+                    _mediaStream = null;
+                }
+
+                if (video) {
+                    video.pause();
+                    try { video.srcObject = null; } catch (e) {}
+                }
+
+                startBtn.style.display = 'inline-block';
+                stopBtn.style.display = 'none';
+                status.textContent = 'Camera stopped';
+            }
+
+            async function scanLoop() {
+                const video = document.getElementById('qrVideo');
+                const status = document.getElementById('qrStatus');
+                const canvas = document.getElementById('qrCanvas');
+
+                if (!_scanning) return;
+
+                try {
+                    if (_barcodeDetector) {
+                        // Use native BarcodeDetector API when available
+                        const barcodes = await _barcodeDetector.detect(video);
+                        if (barcodes && barcodes.length > 0) {
+                            handleDetectedCode(barcodes[0].rawValue || barcodes[0].rawData);
+                            return;
+                        }
+                    } else if (typeof jsQR === 'function') {
+                        // Fallback using jsQR: draw video frame to canvas and decode image data
+                        if (video.videoWidth === 0 || video.videoHeight === 0) {
+                            // Video metadata not ready yet - try again next frame
+                            _scanAnim = requestAnimationFrame(scanLoop);
+                            return;
+                        }
+
+                        // Ensure canvas matches video size
+                        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                        }
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        try {
+                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+
+                            if (code && code.data) {
+                                handleDetectedCode(code.data);
+                                return;
+                            }
+                        } catch (e) {
+                            console.warn('jsQR decoding error or canvas access denied:', e);
+                            status.textContent = 'QR decode error: ' + (e && e.message ? e.message : e);
+                        }
+                    } else {
+                        // Neither BarcodeDetector nor jsQR available
+                        status.textContent = 'This browser does not provide a native QR decoder (BarcodeDetector) and jsQR is not available. Please paste the address manually.';
+                        console.warn('No BarcodeDetector or jsQR available - stopping scan loop');
+                        // Stop active scanning loop but leave camera running for user alignment if desired
+                        _scanning = false;
+                        document.getElementById('startCameraBtn').style.display = 'none';
+                        document.getElementById('stopCameraBtn').style.display = 'inline-block';
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Error during QR detection:', err);
+                    status.textContent = 'Error during detection: ' + (err.message || err);
+                }
+
+                // Continue scanning
+                _scanAnim = requestAnimationFrame(scanLoop);
+            }
+
+            function handleDetectedCode(value) {
+                const status = document.getElementById('qrStatus');
+                const input = document.getElementById('addressInput');
+
+                if (!value) {
+                    status.textContent = 'Detected QR code but no data found';
+                    return;
+                }
+
+                // Only accept the exact host app.metri.xyz and extract the 0x... address
+                let extracted = null;
+                try {
+                    const parsed = new URL(value);
+                    if (parsed.hostname === 'app.metri.xyz') {
+                        // Look for the first 0x-prefixed 40-hex substring in the path
+                        const m = parsed.pathname.match(/0x[a-fA-F0-9]{40}/);
+                        if (m) {
+                            extracted = m[0];
+                        } else {
+                            status.textContent = 'No Ethereum address found in app.metri.xyz URL';
+                        }
+                    } else {
+                        status.textContent = 'QR URL host not allowed. Expected app.metri.xyz';
+                    }
+                } catch (err) {
+                    // Not a URL
+                    status.textContent = 'QR payload is not a valid URL (expected app.metri.xyz)';
+                }
+
+                if (!extracted) {
+                    // Stop camera to avoid repeated failed attempts and let the user retry
+                    console.warn('Ignored QR payload (not matching app.metri.xyz):', value);
+                    stopCamera();
+                    return;
+                }
+
+                // Fill input with the extracted address (preserve case as in QR)
+                input.value = extracted;
+                status.textContent = 'app.metri.xyz address detected — starting calculation...';
+
+                // Hide suggestions panel (if any)
+                const suggestions = document.getElementById('searchSuggestions');
+                if (suggestions) suggestions.style.display = 'none';
+
+                // Stop camera to conserve battery and avoid duplicate detections
+                stopCamera();
+
+                // Auto-trigger the calculation after a short delay so UI updates first
+                setTimeout(() => {
+                    calculateTrustScore();
+                }, 300);
             }
 
             // Pre-load Backers members on page load
